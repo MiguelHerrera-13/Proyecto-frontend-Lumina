@@ -3,7 +3,6 @@ package com.lumina.frontend.ui.screens
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -14,152 +13,123 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.lumina.frontend.data.model.Patient
 
 @Composable
 fun PatientFormDialog(
-    nextId: Int,
     onDismiss: () -> Unit,
-    onAddPatient: (Patient) -> Unit
+    onAddPatient: (
+        nombreCompleto: String,
+        fechaNacimiento: String,
+        diagnosticoFase: String
+    ) -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var age by remember { mutableStateOf("") }
-    var room by remember { mutableStateOf("") }
-    var condition by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf("") }
 
-    var nameError by remember { mutableStateOf<String?>(null) }
-    var ageError by remember { mutableStateOf<String?>(null) }
-    var roomError by remember { mutableStateOf<String?>(null) }
-    var conditionError by remember { mutableStateOf<String?>(null) }
-    var statusError by remember { mutableStateOf<String?>(null) }
+    var nombreCompleto by remember { mutableStateOf("") }
+    var fechaNacimiento by remember { mutableStateOf("") }
+    var diagnosticoFase by remember { mutableStateOf("") }
+
+    var nombreError by remember { mutableStateOf<String?>(null) }
+    var fechaError by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
+
         title = {
             Text("Agregar paciente")
         },
+
         text = {
             Column(
                 modifier = Modifier.padding(top = 8.dp)
             ) {
+
                 OutlinedTextField(
-                    value = name,
+                    value = nombreCompleto,
                     onValueChange = {
-                        name = it
-                        nameError = null
+                        nombreCompleto = it
+                        nombreError = null
                     },
-                    label = { Text("Nombre completo") },
-                    isError = nameError != null,
+                    label = {
+                        Text("Nombre completo")
+                    },
+                    isError = nombreError != null,
                     supportingText = {
-                        nameError?.let { Text(it) }
+                        nombreError?.let {
+                            Text(it)
+                        }
                     },
+                    singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 OutlinedTextField(
-                    value = age,
+                    value = fechaNacimiento,
                     onValueChange = {
-                        age = it
-                        ageError = null
+                        fechaNacimiento = it
+                        fechaError = null
                     },
-                    label = { Text("Edad") },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number
-                    ),
-                    isError = ageError != null,
+                    label = {
+                        Text("Fecha de nacimiento")
+                    },
+                    placeholder = {
+                        Text("2000-05-20")
+                    },
+                    isError = fechaError != null,
                     supportingText = {
-                        ageError?.let { Text(it) }
+                        fechaError?.let {
+                            Text(it)
+                        }
                     },
+                    singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 OutlinedTextField(
-                    value = room,
+                    value = diagnosticoFase,
                     onValueChange = {
-                        room = it
-                        roomError = null
+                        diagnosticoFase = it
                     },
-                    label = { Text("Habitación") },
-                    isError = roomError != null,
-                    supportingText = {
-                        roomError?.let { Text(it) }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = condition,
-                    onValueChange = {
-                        condition = it
-                        conditionError = null
-                    },
-                    label = { Text("Condición") },
-                    isError = conditionError != null,
-                    supportingText = {
-                        conditionError?.let { Text(it) }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = status,
-                    onValueChange = {
-                        status = it
-                        statusError = null
-                    },
-                    label = { Text("Estado") },
-                    isError = statusError != null,
-                    supportingText = {
-                        statusError?.let { Text(it) }
+                    label = {
+                        Text("Diagnóstico / fase")
                     },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
         },
+
         confirmButton = {
             TextButton(
                 onClick = {
-                    val parsedAge = age.toIntOrNull()
 
-                    nameError =
-                        if (name.isBlank()) "El nombre es obligatorio" else null
+                    nombreError =
+                        if (nombreCompleto.isBlank()) {
+                            "El nombre es obligatorio"
+                        } else {
+                            null
+                        }
 
-                    ageError = when {
-                        age.isBlank() -> "La edad es obligatoria"
-                        parsedAge == null || parsedAge <= 0 ->
-                            "Ingresá una edad válida"
+                    val formatoFecha =
+                        Regex("""\d{4}-\d{2}-\d{2}""")
+
+                    fechaError = when {
+                        fechaNacimiento.isBlank() ->
+                            "La fecha de nacimiento es obligatoria"
+
+                        !formatoFecha.matches(fechaNacimiento.trim()) ->
+                            "Usá el formato AAAA-MM-DD"
+
                         else -> null
                     }
 
-                    roomError =
-                        if (room.isBlank()) "La habitación es obligatoria" else null
-
-                    conditionError =
-                        if (condition.isBlank()) "La condición es obligatoria" else null
-
-                    statusError =
-                        if (status.isBlank()) "El estado es obligatorio" else null
-
-                    val isValid =
-                        nameError == null &&
-                                ageError == null &&
-                                roomError == null &&
-                                conditionError == null &&
-                                statusError == null
-
-                    if (isValid && parsedAge != null) {
+                    if (
+                        nombreError == null &&
+                        fechaError == null
+                    ) {
                         onAddPatient(
-                            Patient(
-                                id = nextId,
-                                name = name.trim(),
-                                age = parsedAge,
-                                room = room.trim(),
-                                condition = condition.trim(),
-                                status = status.trim()
-                            )
+                            nombreCompleto.trim(),
+                            fechaNacimiento.trim(),
+                            diagnosticoFase.trim()
                         )
                     }
                 }
@@ -167,8 +137,11 @@ fun PatientFormDialog(
                 Text("Agregar")
             }
         },
+
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss
+            ) {
                 Text("Cancelar")
             }
         }
