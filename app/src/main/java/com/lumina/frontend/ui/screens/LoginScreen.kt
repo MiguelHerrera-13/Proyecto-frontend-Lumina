@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import android.util.Patterns
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +41,8 @@ fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -95,10 +98,19 @@ fun LoginScreen(
 
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = {
+                    email = it
+                    emailError = null
+                },
                 label = { Text("Correo electrónico") },
                 placeholder = { Text("cuidador@lumina.com") },
                 singleLine = true,
+                isError = emailError != null,
+                supportingText = {
+                    emailError?.let {
+                        Text(text = it)
+                    }
+                },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -106,17 +118,47 @@ fun LoginScreen(
 
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = {
+                    password = it
+                    passwordError = null
+                },
                 label = { Text("Contraseña") },
                 visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
+                isError = passwordError != null,
+                supportingText = {
+                    passwordError?.let {
+                        Text(text = it)
+                    }
+                },
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
-                onClick = onLoginSuccess,
+                onClick = {
+                    val newEmailError = when {
+                        email.isBlank() -> "El correo es obligatorio"
+                        !Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() ->
+                            "Ingresá un correo válido"
+                        else -> null
+                    }
+
+                    val newPasswordError =
+                        if (password.isBlank()) {
+                            "La contraseña es obligatoria"
+                        } else {
+                            null
+                        }
+
+                    emailError = newEmailError
+                    passwordError = newPasswordError
+
+                    if (newEmailError == null && newPasswordError == null) {
+                        onLoginSuccess()
+                    }
+                },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(

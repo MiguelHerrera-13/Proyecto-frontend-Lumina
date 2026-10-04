@@ -24,34 +24,47 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
-data class Patient(
-    val id: Int,
-    val name: String,
-    val age: Int,
-    val room: String,
-    val condition: String,
-    val status: String
-)
-
-private val staticPatients = listOf(
-    Patient(1, "María Elena González", 78, "Hab. 204", "Acompañamiento diurno", "Estable"),
-    Patient(2, "Carlos Alberto Ramírez", 82, "Hab. 112", "Rehabilitación motriz", "En reposo"),
-    Patient(3, "Lucía Fernández", 71, "Hab. 305", "Control posoperatorio", "Observación"),
-    Patient(4, "Jorge Eduardo Méndez", 85, "Hab. 108", "Monitoreo cognitivo", "Estable")
-)
-
+import androidx.compose.material3.Button
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.lumina.frontend.data.local.FakePatientDataSource
+import com.lumina.frontend.data.model.Patient
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PatientsScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val patients = remember {
+        mutableStateListOf<Patient>().apply {
+            addAll(FakePatientDataSource.getPatients())
+        }
+    }
+    var showPatientForm by remember {
+        mutableStateOf(false)
+    }
+    if (showPatientForm) {
+        val nextId = (patients.maxOfOrNull { it.id } ?: 0) + 1
+
+        PatientFormDialog(
+            nextId = nextId,
+            onDismiss = {
+                showPatientForm = false
+            },
+            onAddPatient = { patient ->
+                patients.add(patient)
+                showPatientForm = false
+            }
+        )
+    }
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -93,8 +106,18 @@ fun PatientsScreen(
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
             }
+            item {
+                Button(
+                    onClick = {
+                        showPatientForm = true
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Agregar paciente")
+                }
+            }
 
-            items(staticPatients, key = { it.id }) { patient ->
+            items(patients, key = { it.id }) { patient ->
                 PatientCard(patient = patient)
             }
         }
