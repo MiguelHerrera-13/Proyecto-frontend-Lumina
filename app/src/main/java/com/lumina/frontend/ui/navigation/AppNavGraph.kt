@@ -47,7 +47,7 @@ fun AppNavGraph(
 
         composable(route = Screen.Patients.route) {
             PatientsScreen(
-                onNavigateBack = {
+                onBack = {
                     navController.popBackStack()
                 }
             )
