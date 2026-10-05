@@ -1,4 +1,4 @@
-package com.lumina.frontend.ui.navigation
+﻿package com.lumina.frontend.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -10,12 +10,13 @@ import com.lumina.frontend.ui.screens.HomeScreen
 import com.lumina.frontend.ui.screens.LoginScreen
 import com.lumina.frontend.ui.screens.PatientsScreen
 import com.lumina.frontend.ui.screens.RegisterScreen
+import com.lumina.frontend.ui.screens.DashboardScreen
 
 @Composable
 fun AppNavGraph(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
-    startDestination: String = Screen.Home.route
+    startDestination: String = Screen.Home.route // Empieza en el inicio
 ) {
     NavHost(
         navController = navController,
@@ -28,7 +29,8 @@ fun AppNavGraph(
                     navController.navigate(Screen.Login.route)
                 },
                 onNavigateToPatients = {
-                    navController.navigate(Screen.Patients.route)
+                    // Por facilidad de prueba, mandemos el botón de pacientes al Dashboard temporalmente
+                    navController.navigate(Screen.Dashboard.route)
                 }
             )
         }
@@ -39,7 +41,7 @@ fun AppNavGraph(
                     navController.popBackStack()
                 },
                 onLoginSuccess = {
-                    navController.navigate(Screen.Patients.route) {
+                    navController.navigate(Screen.Dashboard.route) {
                         popUpTo(Screen.Home.route)
                     }
                 },
@@ -63,6 +65,10 @@ fun AppNavGraph(
                     navController.popBackStack()
                 }
             )
+        }
+
+        composable(route = Screen.Dashboard.route) {
+            DashboardScreen()
         }
     }
 }
