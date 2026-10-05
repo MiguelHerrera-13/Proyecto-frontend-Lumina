@@ -9,6 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import com.lumina.frontend.ui.screens.HomeScreen
 import com.lumina.frontend.ui.screens.LoginScreen
 import com.lumina.frontend.ui.screens.PatientsScreen
+import com.lumina.frontend.ui.screens.RegisterScreen
 
 @Composable
 fun AppNavGraph(
@@ -41,6 +42,17 @@ fun AppNavGraph(
                     navController.navigate(Screen.Patients.route) {
                         popUpTo(Screen.Home.route)
                     }
+                },
+                onNavigateToRegister = {
+                    navController.navigate(Screen.Register.route)
+                }
+            )
+        }
+
+        composable(route = Screen.Register.route) {
+            RegisterScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
             )
         }
