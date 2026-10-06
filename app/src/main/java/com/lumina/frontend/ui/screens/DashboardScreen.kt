@@ -1,4 +1,4 @@
-﻿package com.lumina.frontend.ui.screens
+package com.lumina.frontend.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -115,7 +115,7 @@ fun TurnoCard(turno: TurnoResponseDto) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Dr. \",
+                    text = turno.nombreMedico ?: "Dr. Asignado",
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 19.sp,
                     color = Color(0xFF111827)
@@ -139,7 +139,7 @@ fun TurnoCard(turno: TurnoResponseDto) {
             Spacer(modifier = Modifier.height(12.dp))
             
             Text(
-                text = "\uD83D\uDCC5 \",
+                text = "\uD83D\uDCC5 ${turno.fechaHora}",
                 color = Color(0xFF374151),
                 fontWeight = FontWeight.Medium
             )
@@ -147,7 +147,7 @@ fun TurnoCard(turno: TurnoResponseDto) {
             Spacer(modifier = Modifier.height(6.dp))
             
             Text(
-                text = "Motivo: \",
+                text = "Motivo: ${turno.motivo ?: "No especificado"}",
                 color = Color.Gray,
                 fontSize = 14.sp
             )
