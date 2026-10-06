@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 fun HomeScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToPatients: () -> Unit,
+    onNavigateToDoctorDashboard: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -99,6 +100,18 @@ fun HomeScreen(
             ) {
                 Text(
                     text = "Ver Pacientes (Acceso directo)",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            FilledTonalButton(
+                onClick = onNavigateToDoctorDashboard,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Dashboard Médico (Panel de Alertas)",
                     style = MaterialTheme.typography.labelLarge
                 )
             }

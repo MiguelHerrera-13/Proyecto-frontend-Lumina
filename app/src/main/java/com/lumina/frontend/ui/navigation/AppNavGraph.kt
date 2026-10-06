@@ -1,4 +1,4 @@
-﻿package com.lumina.frontend.ui.navigation
+package com.lumina.frontend.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -11,6 +11,7 @@ import com.lumina.frontend.ui.screens.LoginScreen
 import com.lumina.frontend.ui.screens.PatientsScreen
 import com.lumina.frontend.ui.screens.RegisterScreen
 import com.lumina.frontend.ui.screens.DashboardScreen
+import com.lumina.frontend.ui.screens.DoctorDashboardScreen
 
 @Composable
 fun AppNavGraph(
@@ -31,6 +32,9 @@ fun AppNavGraph(
                 onNavigateToPatients = {
                     // Por facilidad de prueba, mandemos el botón de pacientes al Dashboard temporalmente
                     navController.navigate(Screen.Dashboard.route)
+                },
+                onNavigateToDoctorDashboard = {
+                    navController.navigate(Screen.DoctorDashboard.route)
                 }
             )
         }
@@ -69,6 +73,14 @@ fun AppNavGraph(
 
         composable(route = Screen.Dashboard.route) {
             DashboardScreen()
+        }
+
+        composable(route = Screen.DoctorDashboard.route) {
+            DoctorDashboardScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
         }
     }
 }
