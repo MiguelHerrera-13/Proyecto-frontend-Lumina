@@ -55,4 +55,10 @@ dependencies {
 
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
+
+    // Jetpack DataStore Preferences
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+
+    // Encrypted SharedPreferences / Security Crypto
+    implementation("androidx.security:security-crypto:1.0.0")
 }

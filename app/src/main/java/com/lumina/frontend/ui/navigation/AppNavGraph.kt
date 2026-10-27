@@ -1,4 +1,4 @@
-﻿package com.lumina.frontend.ui.navigation
+package com.lumina.frontend.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -6,17 +6,17 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.lumina.frontend.ui.screens.DashboardScreen
 import com.lumina.frontend.ui.screens.HomeScreen
 import com.lumina.frontend.ui.screens.LoginScreen
 import com.lumina.frontend.ui.screens.PatientsScreen
 import com.lumina.frontend.ui.screens.RegisterScreen
-import com.lumina.frontend.ui.screens.DashboardScreen
 
 @Composable
 fun AppNavGraph(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
-    startDestination: String = Screen.Home.route // Empieza en el inicio
+    startDestination: String = Screen.Home.route
 ) {
     NavHost(
         navController = navController,
@@ -39,9 +39,15 @@ fun AppNavGraph(
                 onNavigateBack = {
                     navController.popBackStack()
                 },
-                onLoginSuccess = {
-                    navController.navigate(Screen.Dashboard.route) {
-                        popUpTo(Screen.Home.route)
+                onLoginSuccess = { rol ->
+                    val destination = when (rol.uppercase()) {
+                        "MEDICO" -> Screen.Patients.route
+                        "ADMIN" -> Screen.Patients.route
+                        "CUIDADOR" -> Screen.Dashboard.route
+                        else -> Screen.Dashboard.route
+                    }
+                    navController.navigate(destination) {
+                        popUpTo(Screen.Home.route) { inclusive = true }
                     }
                 },
                 onNavigateToRegister = {

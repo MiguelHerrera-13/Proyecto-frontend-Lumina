@@ -1,53 +1,76 @@
 package com.lumina.frontend.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import android.util.Patterns
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import android.util.Patterns
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.lumina.frontend.data.local.AuthDataStore
+import com.lumina.frontend.data.repository.AuthRepository
+import com.lumina.frontend.ui.viewmodel.LoginState
+import com.lumina.frontend.ui.viewmodel.LoginViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     onNavigateBack: () -> Unit,
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (rol: String) -> Unit,
     onNavigateToRegister: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: LoginViewModel? = null
 ) {
+    val context = LocalContext.current
+    val loginViewModel: LoginViewModel = viewModel ?: remember {
+        val dataStore = AuthDataStore(context)
+        val repository = AuthRepository(authDataStore = dataStore)
+        LoginViewModel(repository)
+    }
+
+    val loginState by loginViewModel.loginState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var emailError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
 
+    // Manejo de efectos según el estado del login
+    LaunchedEffect(loginState) {
+        when (val state = loginState) {
+            is LoginState.Success -> {
+                onLoginSuccess(state.rol)
+            }
+            is LoginState.Error -> {
+                snackbarHostState.showSnackbar(
+                    message = state.message,
+                    duration = SnackbarDuration.Short
+                )
+                loginViewModel.resetState()
+            }
+            else -> {}
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                )
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -81,7 +104,7 @@ fun LoginScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "Acceso para Cuidadores",
+                text = "Acceso a Lúmina",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.primary
@@ -90,7 +113,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Ingresa tus credenciales para acceder al listado de pacientes asignados.",
+                text = "Ingresa tus credenciales para acceder a tu panel clínico.",
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -105,13 +128,11 @@ fun LoginScreen(
                     emailError = null
                 },
                 label = { Text("Correo electrónico") },
-                placeholder = { Text("cuidador@lumina.com") },
+                placeholder = { Text("usuario@lumina.com") },
                 singleLine = true,
                 isError = emailError != null,
                 supportingText = {
-                    emailError?.let {
-                        Text(text = it)
-                    }
+                    emailError?.let { Text(text = it) }
                 },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -129,56 +150,50 @@ fun LoginScreen(
                 singleLine = true,
                 isError = passwordError != null,
                 supportingText = {
-                    passwordError?.let {
-                        Text(text = it)
-                    }
+                    passwordError?.let { Text(text = it) }
                 },
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            val isLoading = loginState is LoginState.Loading
+
             Button(
                 onClick = {
                     val newEmailError = when {
                         email.isBlank() -> "El correo es obligatorio"
-                        !Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() ->
-                            "Ingresá un correo válido"
+                        !Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() -> "Ingresá un correo válido"
                         else -> null
                     }
 
-                    val newPasswordError =
-                        if (password.isBlank()) {
-                            "La contraseña es obligatoria"
-                        } else {
-                            null
-                        }
+                    val newPasswordError = if (password.isBlank()) "La contraseña es obligatoria" else null
 
                     emailError = newEmailError
                     passwordError = newPasswordError
 
                     if (newEmailError == null && newPasswordError == null) {
-                        onLoginSuccess()
+                        loginViewModel.login(email.trim(), password)
                     }
                 },
+                enabled = !isLoading,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = "Ingresar",
-                    style = MaterialTheme.typography.labelLarge
-                )
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = "Ingresar",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Nota académica: Contenido estático sin autenticación real ni conexión a backend.",
-                style = MaterialTheme.typography.bodySmall,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.outline
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             TextButton(onClick = onNavigateToRegister) {
                 Text("¿No tienes cuenta? Regístrate")
