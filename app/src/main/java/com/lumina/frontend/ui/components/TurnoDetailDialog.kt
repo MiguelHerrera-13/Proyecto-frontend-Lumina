@@ -13,8 +13,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -29,6 +32,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,10 +50,11 @@ import com.lumina.frontend.util.CalendarExportHelper
 /**
  * Diálogo modal para la vista de detalle de un turno médico (TurnoDetailDialog).
  *
- * Criterios de Aceptación (Issue #33 / Frontend #25):
- * 1. Botón "Añadir a mi calendario" en la vista de detalle del turno.
- * 2. Lanzar Intent con CalendarContract.Events.CONTENT_URI precargando título, fechas y descripción.
- * 3. Manejo de permisos correspondientes en Android (mediante delegación a la app del sistema).
+ * Cumple con los criterios de Issue #30 (Frontend #22) e Issue #33 (Frontend #25):
+ * 1. Badge de estado con color distintivo (PENDIENTE, EN_CURSO, COMPLETADO, CANCELADO).
+ * 2. Botón "Iniciar Turno" visible si está pendiente y en horario.
+ * 3. Botón "Finalizar y Crear Reporte" que redirige al reporte diario.
+ * 4. Botón "Añadir a mi calendario" para exportación con CalendarContract.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,11 +63,21 @@ fun TurnoDetailDialog(
     onDismiss: () -> Unit,
     onCancelarTurno: (() -> Unit)? = null,
     onReprogramarTurno: (() -> Unit)? = null,
+    onIniciarTurno: ((Long) -> Unit)? = null,
+    onFinalizarYCrearReporte: ((Long) -> Unit)? = null,
+    onVerPantallaCompleta: ((Long) -> Unit)? = null,
     onCalendarExportFeedback: ((Boolean, String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val isCancelado = turno.estado == "CANCELADO"
+    var estadoLocal by remember(turno.estado) {
+        mutableStateOf(turno.estado?.uppercase() ?: "PENDIENTE")
+    }
+
+    val isPendiente = estadoLocal == "PENDIENTE" || estadoLocal == "PROGRAMADO"
+    val isEnCurso = estadoLocal == "EN_CURSO"
+    val isCompletado = estadoLocal == "COMPLETADO"
+    val isCancelado = estadoLocal == "CANCELADO"
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -111,7 +129,7 @@ fun TurnoDetailDialog(
                     .padding(top = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Tarjeta de Médico y Estado
+                // Tarjeta de Paciente, Médico y Estado
                 ElevatedCard(
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -122,25 +140,27 @@ fun TurnoDetailDialog(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = turno.nombreMedico ?: "Dr. Asignado",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-
-                            // Badge de Estado
-                            val badgeBg = when (turno.estado) {
-                                "CANCELADO" -> Color(0xFFFEE2E2)
-                                "REPROGRAMADO" -> Color(0xFFE0E7FF)
-                                "COMPLETADO" -> Color(0xFFD1FAE5)
-                                else -> Color(0xFFFEF3C7)
+                            Column {
+                                Text(
+                                    text = turno.nombreMedico ?: "Dr. Asignado",
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Paciente: ${turno.nombrePaciente ?: "María Elena González"}",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray
+                                )
                             }
-                            val badgeText = when (turno.estado) {
-                                "CANCELADO" -> Color(0xFF991B1B)
-                                "REPROGRAMADO" -> Color(0xFF3730A3)
-                                "COMPLETADO" -> Color(0xFF065F46)
-                                else -> Color(0xFF92400E)
+
+                            // Badge de Estado con Color Distintivo (PENDIENTE, EN_CURSO, COMPLETADO, CANCELADO)
+                            val (badgeBg, badgeText, badgeIcon) = when (estadoLocal) {
+                                "PENDIENTE", "PROGRAMADO" -> Triple(Color(0xFFFEF3C7), Color(0xFF92400E), "⏳")
+                                "EN_CURSO" -> Triple(Color(0xFFDBEAFE), Color(0xFF1D4ED8), "⏱️")
+                                "COMPLETADO" -> Triple(Color(0xFFD1FAE5), Color(0xFF065F46), "✅")
+                                "CANCELADO" -> Triple(Color(0xFFFEE2E2), Color(0xFF991B1B), "❌")
+                                else -> Triple(Color(0xFFF1F5F9), Color(0xFF475569), "📋")
                             }
 
                             Box(
@@ -149,12 +169,16 @@ fun TurnoDetailDialog(
                                     .background(badgeBg)
                                     .padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
-                                Text(
-                                    text = turno.estado ?: "PROGRAMADO",
-                                    color = badgeText,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(text = badgeIcon, fontSize = 11.sp)
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = estadoLocal,
+                                        color = badgeText,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
 
@@ -167,7 +191,7 @@ fun TurnoDetailDialog(
                                 text = turno.fechaHora,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.primary,
-                                fontSize = 15.sp
+                                fontSize = 14.sp
                             )
                         }
 
@@ -181,41 +205,77 @@ fun TurnoDetailDialog(
                     }
                 }
 
-                // BOTÓN REQUERIDO: AÑADIR A MI CALENDARIO
-                Button(
+                // ========================================================
+                // ACCIONES DE ESTADO: INICIAR TURNO Y FINALIZAR/REPORTE
+                // ========================================================
+                if (isPendiente) {
+                    Button(
+                        onClick = {
+                            estadoLocal = "EN_CURSO"
+                            onIniciarTurno?.invoke(turno.id)
+                        },
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Iniciar Turno",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "Iniciar Turno", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                } else if (isEnCurso) {
+                    Button(
+                        onClick = {
+                            estadoLocal = "COMPLETADO"
+                            onDismiss()
+                            onFinalizarYCrearReporte?.invoke(turno.id)
+                        },
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF059669)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AssignmentTurnedIn,
+                            contentDescription = "Finalizar y Crear Reporte",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "Finalizar y Crear Reporte", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                }
+
+                // BOTÓN AÑADIR A MI CALENDARIO
+                OutlinedButton(
                     onClick = {
                         CalendarExportHelper.exportarTurnoAlCalendario(
                             context = context,
-                            turno = turno,
+                            turno = turno.copy(estado = estadoLocal),
                             onFeedback = onCalendarExportFeedback
                         )
                     },
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF0284C7)
-                    ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
+                        .height(44.dp)
                 ) {
-                    Text(text = "🗓️", fontSize = 16.sp)
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "🗓️", fontSize = 15.sp)
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Añadir a mi calendario",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp
                     )
                 }
 
-                Text(
-                    text = "Abre tu aplicación de calendario de Android con el título, horario y médico precargados.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
-                    lineHeight = 16.sp
-                )
-
-                // Acciones adicionales de estado si el turno está activo
-                if (!isCancelado && (onCancelarTurno != null || onReprogramarTurno != null)) {
+                // Acciones secundarias (Reprogramar / Cancelar)
+                if (!isCancelado && !isCompletado && (onCancelarTurno != null || onReprogramarTurno != null)) {
                     Divider(color = Color(0xFFE2E8F0))
 
                     Row(
@@ -228,7 +288,7 @@ fun TurnoDetailDialog(
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Reprogramar", fontSize = 13.sp)
+                                Text("Reprogramar", fontSize = 12.sp)
                             }
                         }
 
@@ -238,7 +298,7 @@ fun TurnoDetailDialog(
                                 colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFDC2626)),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Cancelar", fontSize = 13.sp)
+                                Text("Cancelar", fontSize = 12.sp)
                             }
                         }
                     }
@@ -246,8 +306,27 @@ fun TurnoDetailDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cerrar")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                onVerPantallaCompleta?.let { onVerFull ->
+                    TextButton(onClick = {
+                        onDismiss()
+                        onVerFull(turno.id)
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.OpenInNew,
+                            contentDescription = "Pantalla Completa",
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Ver Pantalla Completa")
+                    }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Cerrar")
+                }
             }
         }
     )

@@ -8,7 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.lumina.frontend.data.remote.dto.TurnoResponseDto
+import com.lumina.frontend.data.local.FakePatientDetailDataSource
 import com.lumina.frontend.ui.screens.CrearTurnoScreen
 import com.lumina.frontend.ui.screens.DashboardScreen
 import com.lumina.frontend.ui.screens.HomeScreen
@@ -90,6 +90,12 @@ fun AppNavGraph(
             DashboardScreen(
                 onNavigateToCrearTurno = {
                     navController.navigate(Screen.CrearTurno.route)
+                },
+                onNavigateToTurnoDetail = { turnoId ->
+                    navController.navigate(Screen.TurnoDetail.createRoute(turnoId))
+                },
+                onNavigateToCrearReporte = { turnoId ->
+                    navController.navigate(Screen.CrearReporteDiario.createRoute(turnoId))
                 }
             )
         }
@@ -113,17 +119,26 @@ fun AppNavGraph(
             )
         }
 
-        composable(route = Screen.TurnoDetail.route) {
+        composable(
+            route = Screen.TurnoDetail.route,
+            arguments = listOf(
+                navArgument("turnoId") {
+                    type = NavType.LongType
+                    defaultValue = 101L
+                }
+            )
+        ) { backStackEntry ->
+            val turnoId = backStackEntry.arguments?.getLong("turnoId") ?: 101L
+            val turnos = FakePatientDetailDataSource.getTurnosFake(1L)
+            val turno = turnos.find { it.id == turnoId } ?: turnos.first()
+
             TurnoDetailScreen(
-                turno = TurnoResponseDto(
-                    id = 1L,
-                    fechaHora = "2026-11-15 10:30",
-                    motivo = "Control médico general y revisión de medicación.",
-                    estado = "PROGRAMADO",
-                    nombreMedico = "Dr. Alejandro Gómez"
-                ),
+                turno = turno,
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                onFinalizarYCrearReporte = { id ->
+                    navController.navigate(Screen.CrearReporteDiario.createRoute(id))
                 }
             )
         }
