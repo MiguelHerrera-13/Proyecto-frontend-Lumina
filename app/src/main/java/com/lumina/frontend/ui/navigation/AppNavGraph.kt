@@ -10,6 +10,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.lumina.frontend.ui.screens.DashboardScreen
 import com.lumina.frontend.ui.screens.HomeScreen
+import com.lumina.frontend.ui.screens.IngestaScreen
 import com.lumina.frontend.ui.screens.LoginScreen
 import com.lumina.frontend.ui.screens.PatientDetailScreen
 import com.lumina.frontend.ui.screens.PatientsScreen
@@ -33,6 +34,9 @@ fun AppNavGraph(
                 },
                 onNavigateToPatients = {
                     navController.navigate(Screen.Patients.route)
+                },
+                onNavigateToIngesta = {
+                    navController.navigate(Screen.Ingesta.route)
                 }
             )
         }
@@ -74,6 +78,14 @@ fun AppNavGraph(
 
         composable(route = Screen.Dashboard.route) {
             DashboardScreen()
+        }
+
+        composable(route = Screen.Ingesta.route) {
+            IngestaScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
         }
 
         composable(
