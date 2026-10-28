@@ -22,9 +22,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lumina.frontend.data.remote.dto.TurnoResponseDto
+import com.lumina.frontend.ui.components.AccionTurno
+import com.lumina.frontend.ui.components.TurnoAccionDialog
+import com.lumina.frontend.ui.components.TurnoDetailDialog
 import com.lumina.frontend.ui.components.TurnoFiltrosBottomSheet
 import com.lumina.frontend.ui.viewmodel.DashboardUiState
 import com.lumina.frontend.ui.viewmodel.DashboardViewModel
+import com.lumina.frontend.util.CalendarExportHelper
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,7 +41,13 @@ fun DashboardScreen(
     val filtros by viewModel.filtros.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
+    // Estado del diálogo de detalle del turno
+    var turnoSeleccionadoParaDetalle by remember { mutableStateOf<TurnoResponseDto?>(null) }
+    // Estado del diálogo modal de cancelación / reprogramación
+    var turnoSeleccionadoParaAccion by remember { mutableStateOf<Pair<Long, AccionTurno>?>(null) }
+    // Estado del bottom sheet de filtros
     var mostrarFiltrosSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(pacienteId) {
@@ -65,7 +75,7 @@ fun DashboardScreen(
                     }
                 },
                 actions = {
-                    // BOTÓN EN LA BARRA SUPERIOR PARA DESPLEGAR EL MODAL BOTTOM SHEET
+                    // Botón superior para desplegar ModalBottomSheet de filtros
                     IconButton(onClick = { mostrarFiltrosSheet = true }) {
                         BadgedBox(
                             badge = {
@@ -79,10 +89,7 @@ fun DashboardScreen(
                                 }
                             }
                         ) {
-                            Text(
-                                text = "🌪️",
-                                fontSize = 20.sp
-                            )
+                            Text(text = "🌪️", fontSize = 20.sp)
                         }
                     }
                 },
@@ -119,7 +126,6 @@ fun DashboardScreen(
                                 contentPadding = PaddingValues(vertical = 8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                // Chip para limpiar todos
                                 item {
                                     SuggestionChip(
                                         onClick = { viewModel.limpiarFiltros() },
@@ -127,7 +133,6 @@ fun DashboardScreen(
                                     )
                                 }
 
-                                // Chips de estados
                                 items(filtros.estadosSeleccionados.toList()) { estado ->
                                     InputChip(
                                         selected = true,
@@ -143,7 +148,6 @@ fun DashboardScreen(
                                     )
                                 }
 
-                                // Chip de profesional
                                 if (filtros.profesionalQuery.isNotBlank()) {
                                     item {
                                         InputChip(
@@ -161,7 +165,6 @@ fun DashboardScreen(
                                     }
                                 }
 
-                                // Chip de fechas
                                 if (filtros.fechaDesde != null || filtros.fechaHasta != null) {
                                     item {
                                         val label = "${filtros.fechaDesde ?: "..."} a ${filtros.fechaHasta ?: "..."}"
@@ -238,7 +241,29 @@ fun DashboardScreen(
                                 modifier = Modifier.fillMaxSize()
                             ) {
                                 items(turnos) { turno ->
-                                    TurnoCard(turno)
+                                    TurnoCard(
+                                        turno = turno,
+                                        onVerDetalle = {
+                                            turnoSeleccionadoParaDetalle = turno
+                                        },
+                                        onExportarCalendario = {
+                                            CalendarExportHelper.exportarTurnoAlCalendario(
+                                                context = context,
+                                                turno = turno,
+                                                onFeedback = { _, mensaje ->
+                                                    coroutineScope.launch {
+                                                        snackbarHostState.showSnackbar(mensaje)
+                                                    }
+                                                }
+                                            )
+                                        },
+                                        onCancelar = {
+                                            turnoSeleccionadoParaAccion = Pair(turno.id, AccionTurno.CANCELAR)
+                                        },
+                                        onReprogramar = {
+                                            turnoSeleccionadoParaAccion = Pair(turno.id, AccionTurno.REPROGRAMAR)
+                                        }
+                                    )
                                 }
                             }
                         }
@@ -267,7 +292,47 @@ fun DashboardScreen(
         }
     }
 
-    // MODAL BOTTOM SHEET DE FILTROS AVANZADOS
+    // Modal de Detalle de Turno
+    turnoSeleccionadoParaDetalle?.let { turno ->
+        TurnoDetailDialog(
+            turno = turno,
+            onDismiss = { turnoSeleccionadoParaDetalle = null },
+            onCancelarTurno = {
+                val id = turno.id
+                turnoSeleccionadoParaDetalle = null
+                turnoSeleccionadoParaAccion = Pair(id, AccionTurno.CANCELAR)
+            },
+            onReprogramarTurno = {
+                val id = turno.id
+                turnoSeleccionadoParaDetalle = null
+                turnoSeleccionadoParaAccion = Pair(id, AccionTurno.REPROGRAMAR)
+            },
+            onCalendarExportFeedback = { _, mensaje ->
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(mensaje)
+                }
+            }
+        )
+    }
+
+    // Modal de Cancelación / Reprogramación
+    turnoSeleccionadoParaAccion?.let { (id, accion) ->
+        TurnoAccionDialog(
+            turnoId = id,
+            accionInicial = accion,
+            onDismiss = {
+                turnoSeleccionadoParaAccion = null
+            },
+            onSuccess = { mensajeExito ->
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(mensajeExito)
+                }
+                viewModel.loadTurnos(pacienteId)
+            }
+        )
+    }
+
+    // Modal Bottom Sheet de Filtros Avanzados
     if (mostrarFiltrosSheet) {
         TurnoFiltrosBottomSheet(
             filtrosActuales = filtros,
@@ -291,14 +356,24 @@ fun DashboardScreen(
 }
 
 @Composable
-fun TurnoCard(turno: TurnoResponseDto) {
+fun TurnoCard(
+    turno: TurnoResponseDto,
+    onVerDetalle: () -> Unit = {},
+    onExportarCalendario: () -> Unit = {},
+    onCancelar: () -> Unit = {},
+    onReprogramar: () -> Unit = {}
+) {
+    val isCancelado = turno.estado == "CANCELADO"
+
     Card(
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.White.copy(alpha = 0.95f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onVerDetalle() }
     ) {
         Column(
             modifier = Modifier.padding(20.dp)
@@ -357,6 +432,56 @@ fun TurnoCard(turno: TurnoResponseDto) {
                 color = Color.Gray,
                 fontSize = 14.sp
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Divider(color = Color(0xFFF1F5F9))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Fila de acciones principales
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = onExportarCalendario,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF0284C7)
+                    ),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(text = "🗓️", fontSize = 13.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "A mi calendario",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                if (!isCancelado) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(
+                            onClick = onCancelar,
+                            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFDC2626)),
+                            contentPadding = PaddingValues(horizontal = 8.dp)
+                        ) {
+                            Text("Cancelar", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                        }
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        OutlinedButton(
+                            onClick = onReprogramar,
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text("Reprogramar", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
         }
     }
 }

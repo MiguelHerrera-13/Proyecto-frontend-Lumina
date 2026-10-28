@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.dp
 fun HomeScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToPatients: () -> Unit,
+    onNavigateToDashboard: () -> Unit = {},
+    onNavigateToIngesta: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -99,6 +101,30 @@ fun HomeScreen(
             ) {
                 Text(
                     text = "Ver Pacientes (Acceso directo)",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedButton(
+                onClick = onNavigateToDashboard,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Mis Turnos Médicos (Acceso directo)",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedButton(
+                onClick = onNavigateToIngesta,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Registro de Ingesta e Hidratación",
                     style = MaterialTheme.typography.labelLarge
                 )
             }
