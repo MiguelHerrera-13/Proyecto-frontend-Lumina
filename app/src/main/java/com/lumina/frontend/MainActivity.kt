@@ -7,12 +7,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import com.lumina.frontend.data.remote.RetrofitClient
 import com.lumina.frontend.ui.navigation.AppNavGraph
 import com.lumina.frontend.ui.theme.LuminaTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Inicializar cliente Retrofit con interceptores de autenticación
+        RetrofitClient.initialize(applicationContext)
+
         setContent {
             LuminaTheme {
                 Surface(
@@ -25,4 +30,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
