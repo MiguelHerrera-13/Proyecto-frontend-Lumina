@@ -1,6 +1,7 @@
 package com.lumina.frontend.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -31,6 +32,7 @@ import com.lumina.frontend.ui.viewmodel.PatientsViewModel
 @Composable
 fun PatientsScreen(
     onBack: () -> Unit,
+    onPatientClick: (Long) -> Unit = {},
     patientsViewModel: PatientsViewModel = viewModel()
 ) {
     val uiState by patientsViewModel.uiState.collectAsState()
@@ -71,42 +73,46 @@ fun PatientsScreen(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
+            FloatingActionButton(
                 onClick = {
                     patientsViewModel.limpiarEstado()
                     showPatientForm = true
                 },
-                icon = { Icon(Icons.Default.Add, contentDescription = "Nuevo") },
-                text = { Text("Nuevo Paciente") },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
-            )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Agregar Paciente"
+                )
+            }
         }
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Barra de búsqueda reactiva
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Barra de Búsqueda Reactiva
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { patientsViewModel.onSearchQueryChange(it) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                placeholder = { Text("Buscar por nombre, apellido o ID...") },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Buscar por nombre, ID o diagnóstico...") },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = "Buscar",
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { patientsViewModel.onSearchQueryChange("") }) {
+                        IconButton(onClick = { patientsViewModel.limpiarBusqueda() }) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Limpiar búsqueda"
@@ -114,72 +120,58 @@ fun PatientsScreen(
                         }
                     }
                 },
-                shape = RoundedCornerShape(24.dp),
                 singleLine = true,
+                shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                 )
             )
 
-            // Chips de filtro por estado (Material 3)
+            // Chips de Filtro por Estado
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilterChip(
-                    selected = selectedFilter == PatientStatusFilter.ALL,
-                    onClick = { patientsViewModel.onFilterSelected(PatientStatusFilter.ALL) },
-                    label = { Text("Todos") }
-                )
-                FilterChip(
-                    selected = selectedFilter == PatientStatusFilter.ACTIVE,
-                    onClick = { patientsViewModel.onFilterSelected(PatientStatusFilter.ACTIVE) },
-                    label = { Text("Activos") }
-                )
-                FilterChip(
-                    selected = selectedFilter == PatientStatusFilter.INACTIVE,
-                    onClick = { patientsViewModel.onFilterSelected(PatientStatusFilter.INACTIVE) },
-                    label = { Text("Inactivos") }
-                )
-            }
-
-            // Contador de resultados y estado de carga
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "${uiState.filteredPatients.size} pacientes encontrados",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp
+                PatientStatusFilter.values().forEach { filter ->
+                    val isSelected = selectedFilter == filter
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { patientsViewModel.onFilterSelected(filter) },
+                        label = {
+                            Text(
+                                text = filter.label,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                     )
                 }
             }
 
-            // Mensajes de error o éxito
-            uiState.errorMessage?.let { errorMsg ->
+            // Contador de resultados
+            if (!uiState.isLoading && uiState.errorMessage == null) {
+                val total = uiState.filteredPatients.size
+                Text(
+                    text = "$total paciente(s) encontrado(s)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Mensajes informativos
+            uiState.errorMessage?.let { error ->
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer
                     ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = errorMsg,
+                        text = "Error: $error",
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         modifier = Modifier.padding(12.dp),
                         style = MaterialTheme.typography.bodyMedium
@@ -187,30 +179,38 @@ fun PatientsScreen(
                 }
             }
 
-            uiState.successMessage?.let { successMsg ->
+            uiState.successMessage?.let { success ->
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFE6F4EA)
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
                     ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = successMsg,
-                        color = Color(0xFF137333),
+                        text = success,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
                         modifier = Modifier.padding(12.dp),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
 
-            // Lista de pacientes o Estado Vacío
-            if (uiState.filteredPatients.isEmpty() && !uiState.isLoading) {
+            // Estado de Carga
+            if (uiState.isLoading) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(top = 40.dp),
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else if (uiState.filteredPatients.isEmpty() && uiState.errorMessage == null) {
+                // Estado Vacío
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 60.dp),
                     contentAlignment = Alignment.TopCenter
                 ) {
                     Column(
@@ -236,6 +236,7 @@ fun PatientsScreen(
                     }
                 }
             } else {
+                // Lista de Pacientes Reactiva
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -245,7 +246,10 @@ fun PatientsScreen(
                         items = uiState.filteredPatients,
                         key = { it.idPaciente }
                     ) { paciente ->
-                        PatientCardItem(paciente = paciente)
+                        PatientCardItem(
+                            paciente = paciente,
+                            onClick = { onPatientClick(paciente.idPaciente) }
+                        )
                     }
                 }
             }
@@ -270,10 +274,13 @@ fun PatientsScreen(
 @Composable
 fun PatientCardItem(
     paciente: PacienteResponseDto,
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     ElevatedCard(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surface

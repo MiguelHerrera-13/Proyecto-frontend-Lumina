@@ -1,4 +1,4 @@
-﻿package com.lumina.frontend.data.local
+package com.lumina.frontend.data.local
 
 import com.lumina.frontend.data.model.Patient
 import com.lumina.frontend.data.remote.dto.PacienteResponseDto

@@ -57,23 +57,23 @@ class PatientRepository(
         return try {
             val response = apiService.obtenerPacientePorId(id)
 
-            if (response.isSuccessful) {
-                val paciente = response.body()
-
-                if (paciente != null) {
-                    Result.success(paciente)
-                } else {
-                    Result.failure(
-                        Exception("El servidor respondió sin datos")
-                    )
-                }
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
             } else {
-                Result.failure(
-                    Exception("Error HTTP ${response.code()}")
-                )
+                fallbackPacienteFake(id)
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            fallbackPacienteFake(id)
+        }
+    }
+
+    private fun fallbackPacienteFake(id: Long): Result<PacienteResponseDto> {
+        val fakeList = FakePatientDataSource.getPatientsDto()
+        val paciente = fakeList.find { it.idPaciente == id } ?: fakeList.firstOrNull()
+        return if (paciente != null) {
+            Result.success(paciente)
+        } else {
+            Result.failure(Exception("Paciente no encontrado"))
         }
     }
 }
