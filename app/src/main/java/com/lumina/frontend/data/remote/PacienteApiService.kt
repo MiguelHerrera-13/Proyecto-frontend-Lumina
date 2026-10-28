@@ -1,4 +1,4 @@
-package com.lumina.frontend.data.remote
+﻿package com.lumina.frontend.data.remote
 
 import com.lumina.frontend.data.remote.dto.PacienteRequestDto
 import com.lumina.frontend.data.remote.dto.PacienteResponseDto
@@ -19,4 +19,7 @@ interface PacienteApiService {
     suspend fun obtenerPacientePorId(
         @Path("id") id: Long
     ): Response<PacienteResponseDto>
+
+    @GET("api/pacientes")
+    suspend fun obtenerPacientes(): Response<List<PacienteResponseDto>>
 }
