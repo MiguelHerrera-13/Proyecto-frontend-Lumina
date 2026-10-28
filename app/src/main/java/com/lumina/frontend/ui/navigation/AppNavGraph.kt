@@ -1,4 +1,4 @@
-﻿package com.lumina.frontend.ui.navigation
+package com.lumina.frontend.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -6,11 +6,13 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.lumina.frontend.data.remote.dto.TurnoResponseDto
+import com.lumina.frontend.ui.screens.DashboardScreen
 import com.lumina.frontend.ui.screens.HomeScreen
 import com.lumina.frontend.ui.screens.LoginScreen
 import com.lumina.frontend.ui.screens.PatientsScreen
 import com.lumina.frontend.ui.screens.RegisterScreen
-import com.lumina.frontend.ui.screens.DashboardScreen
+import com.lumina.frontend.ui.screens.TurnoDetailScreen
 
 @Composable
 fun AppNavGraph(
@@ -30,6 +32,9 @@ fun AppNavGraph(
                 },
                 onNavigateToPatients = {
                     navController.navigate(Screen.Patients.route)
+                },
+                onNavigateToDashboard = {
+                    navController.navigate(Screen.Dashboard.route)
                 }
             )
         }
@@ -68,6 +73,21 @@ fun AppNavGraph(
 
         composable(route = Screen.Dashboard.route) {
             DashboardScreen()
+        }
+
+        composable(route = Screen.TurnoDetail.route) {
+            TurnoDetailScreen(
+                turno = TurnoResponseDto(
+                    id = 1L,
+                    fechaHora = "2026-11-15 10:30",
+                    motivo = "Control médico general y revisión de medicación.",
+                    estado = "PROGRAMADO",
+                    nombreMedico = "Dr. Alejandro Gómez"
+                ),
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
         }
     }
 }
