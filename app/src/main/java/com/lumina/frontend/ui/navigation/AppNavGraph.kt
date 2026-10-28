@@ -1,11 +1,13 @@
 package com.lumina.frontend.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.lumina.frontend.data.local.SessionManager
 import com.lumina.frontend.ui.screens.DashboardScreen
 import com.lumina.frontend.ui.screens.HomeScreen
 import com.lumina.frontend.ui.screens.LoginScreen
@@ -18,6 +20,15 @@ fun AppNavGraph(
     navController: NavHostController = rememberNavController(),
     startDestination: String = Screen.Home.route
 ) {
+    // Escuchar expiración global de sesión (refresh token expirado) para redirigir al login
+    LaunchedEffect(Unit) {
+        SessionManager.sessionExpiredEvent.collect {
+            navController.navigate(Screen.Login.route) {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = startDestination,

@@ -24,7 +24,8 @@ class AuthRepository(
                 authDataStore.saveAuthData(
                     token = authData.token,
                     rol = authData.rol,
-                    email = authData.email
+                    email = authData.email,
+                    refreshToken = authData.refreshToken
                 )
                 Result.success(authData)
             } else if (response.code() == 401) {
