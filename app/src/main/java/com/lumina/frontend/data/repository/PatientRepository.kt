@@ -1,14 +1,30 @@
-﻿package com.lumina.frontend.data.repository
+package com.lumina.frontend.data.repository
 
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
 import com.lumina.frontend.data.local.FakePatientDataSource
+import com.lumina.frontend.data.paging.PatientPagingSource
 import com.lumina.frontend.data.remote.PacienteApiService
 import com.lumina.frontend.data.remote.RetrofitClient
 import com.lumina.frontend.data.remote.dto.PacienteRequestDto
 import com.lumina.frontend.data.remote.dto.PacienteResponseDto
+import kotlinx.coroutines.flow.Flow
 
 class PatientRepository(
     private val apiService: PacienteApiService = RetrofitClient.pacienteApiService
 ) {
+
+    fun getPatientsPaged(pageSize: Int = PatientPagingSource.DEFAULT_PAGE_SIZE): Flow<PagingData<PacienteResponseDto>> {
+        return Pager(
+            config = PagingConfig(
+                pageSize = pageSize,
+                enablePlaceholders = false,
+                initialLoadSize = pageSize
+            ),
+            pagingSourceFactory = { PatientPagingSource(apiService) }
+        ).flow
+    }
 
     suspend fun obtenerPacientes(): Result<List<PacienteResponseDto>> {
         return try {

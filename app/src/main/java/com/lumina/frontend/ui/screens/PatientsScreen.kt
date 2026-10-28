@@ -24,6 +24,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
 import com.lumina.frontend.data.remote.dto.PacienteResponseDto
 import com.lumina.frontend.ui.viewmodel.PatientStatusFilter
 import com.lumina.frontend.ui.viewmodel.PatientsViewModel
@@ -39,7 +41,12 @@ fun PatientsScreen(
     val searchQuery by patientsViewModel.searchQuery.collectAsState()
     val selectedFilter by patientsViewModel.selectedFilter.collectAsState()
 
+    // Criterio 2: Usar collectAsLazyPagingItems() en el composable de la lista
+    val pagedPatients = patientsViewModel.pagedPatients.collectAsLazyPagingItems()
+
     var showPatientForm by remember { mutableStateOf(false) }
+
+    val isFilteringOrSearching = searchQuery.isNotEmpty() || selectedFilter != PatientStatusFilter.ALL
 
     Scaffold(
         topBar = {
@@ -59,7 +66,10 @@ fun PatientsScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { patientsViewModel.cargarPacientes() }) {
+                    IconButton(onClick = {
+                        patientsViewModel.cargarPacientes()
+                        pagedPatients.refresh()
+                    }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Recargar"
@@ -152,11 +162,17 @@ fun PatientsScreen(
                 }
             }
 
-            // Contador de resultados
-            if (!uiState.isLoading && uiState.errorMessage == null) {
+            // Indicador de modo / contador de resultados
+            if (isFilteringOrSearching) {
                 val total = uiState.filteredPatients.size
                 Text(
                     text = "$total paciente(s) encontrado(s)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Text(
+                    text = "Mostrando pacientes con desplazamiento infinito (Paging 3)",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -195,61 +211,177 @@ fun PatientsScreen(
                 }
             }
 
-            // Estado de Carga
-            if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 40.dp),
-                    contentAlignment = Alignment.TopCenter
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else if (uiState.filteredPatients.isEmpty() && uiState.errorMessage == null) {
-                // Estado Vacío
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 60.dp),
-                    contentAlignment = Alignment.TopCenter
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+            // Renderizado de Lista: Filtrada o Paginada
+            if (isFilteringOrSearching) {
+                // Modo Filtrado / Búsqueda
+                if (uiState.isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = 40.dp),
+                        contentAlignment = Alignment.TopCenter
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            modifier = Modifier.size(56.dp),
-                            tint = MaterialTheme.colorScheme.outline
-                        )
-                        Text(
-                            text = "No se encontraron pacientes",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Prueba modificando el término de búsqueda o el filtro de estado.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        CircularProgressIndicator()
+                    }
+                } else if (uiState.filteredPatients.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = 60.dp),
+                        contentAlignment = Alignment.TopCenter
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                modifier = Modifier.size(56.dp),
+                                tint = MaterialTheme.colorScheme.outline
+                            )
+                            Text(
+                                text = "No se encontraron pacientes",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Prueba modificando el término de búsqueda o el filtro de estado.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(bottom = 80.dp)
+                    ) {
+                        items(
+                            items = uiState.filteredPatients,
+                            key = { it.idPaciente }
+                        ) { paciente ->
+                            PatientCardItem(
+                                paciente = paciente,
+                                onClick = { onPatientClick(paciente.idPaciente) }
+                            )
+                        }
                     }
                 }
             } else {
-                // Lista de Pacientes Reactiva
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(bottom = 80.dp)
-                ) {
-                    items(
-                        items = uiState.filteredPatients,
-                        key = { it.idPaciente }
-                    ) { paciente ->
-                        PatientCardItem(
-                            paciente = paciente,
-                            onClick = { onPatientClick(paciente.idPaciente) }
-                        )
+                // Modo Paginación Progresiva con Android Paging 3
+                when (pagedPatients.loadState.refresh) {
+                    is LoadState.Loading -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = 40.dp),
+                            contentAlignment = Alignment.TopCenter
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+
+                    is LoadState.Error -> {
+                        val error = (pagedPatients.loadState.refresh as LoadState.Error).error
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = 40.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = "Error al cargar pacientes: ${error.localizedMessage ?: "Fallo de conexión"}",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Button(onClick = { pagedPatients.retry() }) {
+                                Icon(Icons.Default.Refresh, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Reintentar")
+                            }
+                        }
+                    }
+
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(bottom = 80.dp)
+                        ) {
+                            items(
+                                count = pagedPatients.itemCount,
+                                key = { index -> pagedPatients[index]?.idPaciente ?: index.toLong() }
+                            ) { index ->
+                                val paciente = pagedPatients[index]
+                                if (paciente != null) {
+                                    PatientCardItem(
+                                        paciente = paciente,
+                                        onClick = { onPatientClick(paciente.idPaciente) }
+                                    )
+                                }
+                            }
+
+                            // Criterio 3: Mostrar ítem de carga al final de la lista mientras se descarga la siguiente página
+                            when (pagedPatients.loadState.append) {
+                                is LoadState.Loading -> {
+                                    item {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                                Text(
+                                                    text = "Cargando más pacientes...",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                is LoadState.Error -> {
+                                    item {
+                                        Card(
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = MaterialTheme.colorScheme.errorContainer
+                                            ),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 8.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(12.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "No se pudieron cargar más pacientes",
+                                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                                OutlinedButton(onClick = { pagedPatients.retry() }) {
+                                                    Text("Reintentar")
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                else -> Unit
+                            }
+                        }
                     }
                 }
             }

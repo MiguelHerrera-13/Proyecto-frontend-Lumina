@@ -85,6 +85,48 @@ object FakePatientDataSource {
                 fechaNacimiento = "1950-03-15",
                 diagnosticoFase = "Control posoperatorio",
                 activo = true
+            ),
+            PacienteResponseDto(
+                idPaciente = 7L,
+                nombreCompleto = "Marta Susana Ríos",
+                fechaNacimiento = "1948-12-05",
+                diagnosticoFase = "Fase 1 - Inicial",
+                activo = true
+            ),
+            PacienteResponseDto(
+                idPaciente = 8L,
+                nombreCompleto = "Esteban Daniel López",
+                fechaNacimiento = "1955-08-30",
+                diagnosticoFase = "Control posoperatorio",
+                activo = true
+            ),
+            PacienteResponseDto(
+                idPaciente = 9L,
+                nombreCompleto = "Beatriz Noemí Castro",
+                fechaNacimiento = "1944-05-14",
+                diagnosticoFase = "Fase 2 - Moderada",
+                activo = false
+            ),
+            PacienteResponseDto(
+                idPaciente = 10L,
+                nombreCompleto = "Héctor Rolando Morales",
+                fechaNacimiento = "1938-10-21",
+                diagnosticoFase = "Fase 3 - Avanzada",
+                activo = true
+            ),
+            PacienteResponseDto(
+                idPaciente = 11L,
+                nombreCompleto = "Silvia Graciela Vargas",
+                fechaNacimiento = "1952-02-18",
+                diagnosticoFase = "Monitoreo cognitivo",
+                activo = true
+            ),
+            PacienteResponseDto(
+                idPaciente = 12L,
+                nombreCompleto = "Guillermo Andrés Silva",
+                fechaNacimiento = "1947-09-09",
+                diagnosticoFase = "Rehabilitación motriz",
+                activo = false
             )
         )
     }
