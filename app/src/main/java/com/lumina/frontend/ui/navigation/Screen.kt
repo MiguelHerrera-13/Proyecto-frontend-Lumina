@@ -11,4 +11,7 @@ sealed class Screen(val route: String) {
     object PatientDetail : Screen("patient_detail/{pacienteId}") {
         fun createRoute(pacienteId: Long): String = "patient_detail/$pacienteId"
     }
+    object CrearReporteDiario : Screen("crear_reporte_diario/{turnoId}") {
+        fun createRoute(turnoId: Long): String = "crear_reporte_diario/$turnoId"
+    }
 }

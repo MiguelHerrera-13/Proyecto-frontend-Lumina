@@ -16,6 +16,7 @@ import com.lumina.frontend.ui.screens.LoginScreen
 import com.lumina.frontend.ui.screens.PatientDetailScreen
 import com.lumina.frontend.ui.screens.PatientsScreen
 import com.lumina.frontend.ui.screens.RegisterScreen
+import com.lumina.frontend.ui.screens.ReporteDiarioScreen
 import com.lumina.frontend.ui.screens.TurnoDetailScreen
 
 @Composable
@@ -36,12 +37,6 @@ fun AppNavGraph(
                 },
                 onNavigateToPatients = {
                     navController.navigate(Screen.Patients.route)
-                },
-                onNavigateToDashboard = {
-                    navController.navigate(Screen.Dashboard.route)
-                },
-                onNavigateToIngesta = {
-                    navController.navigate(Screen.Ingesta.route)
                 }
             )
         }
@@ -52,7 +47,7 @@ fun AppNavGraph(
                     navController.popBackStack()
                 },
                 onLoginSuccess = {
-                    navController.navigate(Screen.Patients.route) {
+                    navController.navigate(Screen.Dashboard.route) {
                         popUpTo(Screen.Home.route)
                     }
                 },
@@ -120,6 +115,24 @@ fun AppNavGraph(
             val pacienteId = backStackEntry.arguments?.getLong("pacienteId") ?: 1L
             PatientDetailScreen(
                 pacienteId = pacienteId,
+                onBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(
+            route = Screen.CrearReporteDiario.route,
+            arguments = listOf(
+                navArgument("turnoId") {
+                    type = NavType.LongType
+                    defaultValue = 1L
+                }
+            )
+        ) { backStackEntry ->
+            val turnoId = backStackEntry.arguments?.getLong("turnoId") ?: 1L
+            ReporteDiarioScreen(
+                idTurno = turnoId,
                 onBack = {
                     navController.popBackStack()
                 }
