@@ -10,19 +10,47 @@ object FakePatientDetailDataSource {
         TurnoResponseDto(
             id = 101L,
             fechaHora = "2026-10-28T10:00:00",
-            motivo = "Control mensual",
+            motivo = "Control mensual y medicación",
             estado = "CONFIRMADO",
             nombreMedico = "Dra. Martínez"
         ),
         TurnoResponseDto(
             id = 102L,
+            fechaHora = "2026-10-28T16:30:00",
+            motivo = "Monitoreo vespertino de signos vitales",
+            estado = "PENDIENTE",
+            nombreMedico = "Enf. Cuidador Principal"
+        ),
+        TurnoResponseDto(
+            id = 103L,
+            fechaHora = "2026-10-29T11:00:00",
+            motivo = "Kinesiología motora y movilidad",
+            estado = "PROGRAMADO",
+            nombreMedico = "Lic. Fernández"
+        ),
+        TurnoResponseDto(
+            id = 104L,
+            fechaHora = "2026-10-31T09:00:00",
+            motivo = "Evaluación médica geriátrica",
+            estado = "PROGRAMADO",
+            nombreMedico = "Dr. Alejandro Gómez"
+        ),
+        TurnoResponseDto(
+            id = 105L,
+            fechaHora = "2026-11-02T15:00:00",
+            motivo = "Consulta nutricional e hidratación",
+            estado = "PROGRAMADO",
+            nombreMedico = "Lic. Valenzuela"
+        ),
+        TurnoResponseDto(
+            id = 106L,
             fechaHora = "2026-11-05T14:30:00",
             motivo = "Seguimiento neurológico",
             estado = "PENDIENTE",
             nombreMedico = "Dr. Sánchez"
         ),
         TurnoResponseDto(
-            id = 103L,
+            id = 107L,
             fechaHora = "2026-09-15T09:00:00",
             motivo = "Revisión general",
             estado = "COMPLETADO",

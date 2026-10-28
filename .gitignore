@@ -3,10 +3,11 @@
 build/
 */build/
 
-# Archivos locales de configuración (Android Studio / IntelliJ)
+# Archivos locales de configuración (Android Studio / IntelliJ / VSCode)
 local.properties
 *.iml
 .idea/
+.vscode/
 
 # Archivos del sistema operativo
 .DS_Store

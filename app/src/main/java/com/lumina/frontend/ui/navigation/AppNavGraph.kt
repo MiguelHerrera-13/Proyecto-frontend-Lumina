@@ -37,6 +37,12 @@ fun AppNavGraph(
                 },
                 onNavigateToPatients = {
                     navController.navigate(Screen.Patients.route)
+                },
+                onNavigateToDashboard = {
+                    navController.navigate(Screen.Dashboard.route)
+                },
+                onNavigateToIngesta = {
+                    navController.navigate(Screen.Ingesta.route)
                 }
             )
         }
