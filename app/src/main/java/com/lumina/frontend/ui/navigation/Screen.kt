@@ -7,8 +7,10 @@ sealed class Screen(val route: String) {
     object Patients : Screen("patients")
     object Dashboard : Screen("dashboard")
     object Ingesta : Screen("ingesta") // Módulo de Ingesta e Hidratación
-    object TurnoDetail : Screen("turno_detail") // Detalle de Turno y Exportación a Calendario
     object CrearTurno : Screen("crear_turno") // Solicitud y Creación de Turnos Médicos (Issue #21)
+    object TurnoDetail : Screen("turno_detail/{turnoId}") { // Detalle de Turno y Acciones de Estado (Issue #22)
+        fun createRoute(turnoId: Long): String = "turno_detail/$turnoId"
+    }
     object PatientDetail : Screen("patient_detail/{pacienteId}") {
         fun createRoute(pacienteId: Long): String = "patient_detail/$pacienteId"
     }

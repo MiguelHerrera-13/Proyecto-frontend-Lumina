@@ -78,7 +78,9 @@ import kotlinx.coroutines.launch
 fun DashboardScreen(
     viewModel: DashboardViewModel = viewModel(),
     pacienteId: Long = 1L,
-    onNavigateToCrearTurno: () -> Unit = {}
+    onNavigateToCrearTurno: () -> Unit = {},
+    onNavigateToTurnoDetail: (Long) -> Unit = {},
+    onNavigateToCrearReporte: (Long) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val filtros by viewModel.filtros.collectAsState()
@@ -406,6 +408,19 @@ fun DashboardScreen(
         TurnoDetailDialog(
             turno = turno,
             onDismiss = { turnoSeleccionadoParaDetalle = null },
+            onIniciarTurno = { id ->
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Turno #$id iniciado. Ahora se encuentra EN CURSO.")
+                }
+            },
+            onFinalizarYCrearReporte = { id ->
+                turnoSeleccionadoParaDetalle = null
+                onNavigateToCrearReporte(id)
+            },
+            onVerPantallaCompleta = { id ->
+                turnoSeleccionadoParaDetalle = null
+                onNavigateToTurnoDetail(id)
+            },
             onCancelarTurno = {
                 val id = turno.id
                 turnoSeleccionadoParaDetalle = null
@@ -498,17 +513,19 @@ fun TurnoCard(
                     fontSize = 19.sp,
                     color = Color(0xFF111827)
                 )
-                // Badge de Estado
+                // Badge de Estado con Color Distintivo
                 val badgeBg = when (turno.estado) {
                     "CANCELADO" -> Color(0xFFFEE2E2)
                     "REPROGRAMADO" -> Color(0xFFE0E7FF)
                     "COMPLETADO" -> Color(0xFFD1FAE5)
+                    "EN_CURSO" -> Color(0xFFDBEAFE)
                     else -> Color(0xFFFEF3C7)
                 }
                 val badgeText = when (turno.estado) {
                     "CANCELADO" -> Color(0xFF991B1B)
                     "REPROGRAMADO" -> Color(0xFF3730A3)
                     "COMPLETADO" -> Color(0xFF065F46)
+                    "EN_CURSO" -> Color(0xFF1D4ED8)
                     else -> Color(0xFF92400E)
                 }
                 Box(
