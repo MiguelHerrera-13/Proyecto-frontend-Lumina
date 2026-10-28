@@ -2,10 +2,13 @@ package com.lumina.frontend.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.lumina.frontend.data.remote.dto.PacienteRequestDto
 import com.lumina.frontend.data.remote.dto.PacienteResponseDto
 import com.lumina.frontend.data.repository.PatientRepository
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -37,6 +40,11 @@ data class PatientUiState(
 class PatientsViewModel(
     private val repository: PatientRepository = PatientRepository()
 ) : ViewModel() {
+
+    // Flujo paginado reactivo de pacientes usando Android Paging 3
+    val pagedPatients: Flow<PagingData<PacienteResponseDto>> = repository
+        .getPatientsPaged()
+        .cachedIn(viewModelScope)
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
@@ -150,7 +158,7 @@ class PatientsViewModel(
 
             _isLoading.value = false
             result.fold(
-                onSuccess = { paciente ->
+                onSuccess = { _ ->
                     _successMessage.value = "Paciente registrado correctamente"
                     cargarPacientes()
                 },
