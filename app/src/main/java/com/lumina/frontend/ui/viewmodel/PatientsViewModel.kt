@@ -16,10 +16,10 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-enum class PatientStatusFilter {
-    ALL,
-    ACTIVE,
-    INACTIVE
+enum class PatientStatusFilter(val label: String) {
+    ALL("Todos"),
+    ACTIVE("Activos"),
+    INACTIVE("Inactivos")
 }
 
 data class PatientUiState(
@@ -69,7 +69,8 @@ class PatientsViewModel(
                 true
             } else {
                 p.nombreCompleto.contains(query, ignoreCase = true) ||
-                p.idPaciente.toString().contains(query)
+                p.idPaciente.toString().contains(query) ||
+                (p.diagnosticoFase?.contains(query, ignoreCase = true) == true)
             }
 
             val matchesFilter = when (filter) {
@@ -103,6 +104,10 @@ class PatientsViewModel(
 
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
+    }
+
+    fun limpiarBusqueda() {
+        _searchQuery.value = ""
     }
 
     fun onFilterSelected(filter: PatientStatusFilter) {

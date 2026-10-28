@@ -100,7 +100,7 @@ fun PatientsScreen(
             // Barra de Búsqueda Reactiva
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = { patientsViewModel.onSearchQueryChanged(it) },
+                onValueChange = { patientsViewModel.onSearchQueryChange(it) },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("Buscar por nombre, ID o diagnóstico...") },
                 leadingIcon = {
