@@ -1,6 +1,7 @@
-package com.lumina.frontend.data.local
+﻿package com.lumina.frontend.data.local
 
 import com.lumina.frontend.data.model.Patient
+import com.lumina.frontend.data.remote.dto.PacienteResponseDto
 
 object FakePatientDataSource {
 
@@ -37,6 +38,53 @@ object FakePatientDataSource {
                 room = "Hab. 108",
                 condition = "Monitoreo cognitivo",
                 status = "Estable"
+            )
+        )
+    }
+
+    fun getPatientsDto(): List<PacienteResponseDto> {
+        return listOf(
+            PacienteResponseDto(
+                idPaciente = 1L,
+                nombreCompleto = "María Elena González",
+                fechaNacimiento = "1946-04-12",
+                diagnosticoFase = "Fase 2 - Moderada",
+                activo = true
+            ),
+            PacienteResponseDto(
+                idPaciente = 2L,
+                nombreCompleto = "Carlos Alberto Ramírez",
+                fechaNacimiento = "1942-09-25",
+                diagnosticoFase = "Fase 1 - Inicial",
+                activo = true
+            ),
+            PacienteResponseDto(
+                idPaciente = 3L,
+                nombreCompleto = "Lucía Fernández",
+                fechaNacimiento = "1953-11-03",
+                diagnosticoFase = "Fase 3 - Avanzada",
+                activo = false
+            ),
+            PacienteResponseDto(
+                idPaciente = 4L,
+                nombreCompleto = "Jorge Eduardo Méndez",
+                fechaNacimiento = "1939-01-18",
+                diagnosticoFase = "Monitoreo cognitivo",
+                activo = true
+            ),
+            PacienteResponseDto(
+                idPaciente = 5L,
+                nombreCompleto = "Ana Sofía Benítez",
+                fechaNacimiento = "1960-07-22",
+                diagnosticoFase = "Rehabilitación motriz",
+                activo = false
+            ),
+            PacienteResponseDto(
+                idPaciente = 6L,
+                nombreCompleto = "Roberto Gómez",
+                fechaNacimiento = "1950-03-15",
+                diagnosticoFase = "Control posoperatorio",
+                activo = true
             )
         )
     }

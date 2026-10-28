@@ -1,4 +1,4 @@
-﻿package com.lumina.frontend.ui.navigation
+package com.lumina.frontend.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -40,7 +40,7 @@ fun AppNavGraph(
                     navController.popBackStack()
                 },
                 onLoginSuccess = {
-                    navController.navigate(Screen.Dashboard.route) {
+                    navController.navigate(Screen.Patients.route) {
                         popUpTo(Screen.Home.route)
                     }
                 },
