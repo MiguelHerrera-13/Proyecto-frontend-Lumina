@@ -9,6 +9,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.lumina.frontend.data.remote.dto.TurnoResponseDto
+import com.lumina.frontend.ui.screens.CrearTurnoScreen
 import com.lumina.frontend.ui.screens.DashboardScreen
 import com.lumina.frontend.ui.screens.HomeScreen
 import com.lumina.frontend.ui.screens.IngestaScreen
@@ -40,6 +41,9 @@ fun AppNavGraph(
                 },
                 onNavigateToDashboard = {
                     navController.navigate(Screen.Dashboard.route)
+                },
+                onNavigateToCrearTurno = {
+                    navController.navigate(Screen.CrearTurno.route)
                 },
                 onNavigateToIngesta = {
                     navController.navigate(Screen.Ingesta.route)
@@ -83,7 +87,22 @@ fun AppNavGraph(
         }
 
         composable(route = Screen.Dashboard.route) {
-            DashboardScreen()
+            DashboardScreen(
+                onNavigateToCrearTurno = {
+                    navController.navigate(Screen.CrearTurno.route)
+                }
+            )
+        }
+
+        composable(route = Screen.CrearTurno.route) {
+            CrearTurnoScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onTurnoCreado = {
+                    navController.popBackStack()
+                }
+            )
         }
 
         composable(route = Screen.Ingesta.route) {
