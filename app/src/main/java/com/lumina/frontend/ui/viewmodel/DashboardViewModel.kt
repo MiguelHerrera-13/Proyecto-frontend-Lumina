@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.lumina.frontend.data.model.TurnoFiltros
 import com.lumina.frontend.data.remote.dto.TurnoResponseDto
 import com.lumina.frontend.data.repository.TurnoRepository
+import com.lumina.frontend.ui.components.extraerFechaIso
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,7 +16,8 @@ sealed interface DashboardUiState {
     data class Success(
         val turnos: List<TurnoResponseDto>,
         val totalSinFiltrar: Int = turnos.size,
-        val filtros: TurnoFiltros = TurnoFiltros()
+        val filtros: TurnoFiltros = TurnoFiltros(),
+        val todosLosTurnos: List<TurnoResponseDto> = emptyList()
     ) : DashboardUiState
     data class Error(val message: String) : DashboardUiState
 }
@@ -28,6 +30,10 @@ class DashboardViewModel : ViewModel() {
 
     private val _filtros = MutableStateFlow(TurnoFiltros())
     val filtros: StateFlow<TurnoFiltros> = _filtros.asStateFlow()
+
+    // Fecha seleccionada en el componente de calendario interactivo ("yyyy-MM-dd")
+    private val _fechaSeleccionadaCalendario = MutableStateFlow<String?>(null)
+    val fechaSeleccionadaCalendario: StateFlow<String?> = _fechaSeleccionadaCalendario.asStateFlow()
 
     private var todosLosTurnos: List<TurnoResponseDto> = emptyList()
 
@@ -46,6 +52,15 @@ class DashboardViewModel : ViewModel() {
     }
 
     /**
+     * Selecciona o deselecciona una fecha en el calendario interactivo.
+     * Si se pasa la misma fecha seleccionada o null, se limpia el filtro de fecha del calendario.
+     */
+    fun seleccionarFechaCalendario(fechaIso: String?) {
+        _fechaSeleccionadaCalendario.value = if (_fechaSeleccionadaCalendario.value == fechaIso) null else fechaIso
+        aplicarFiltrosInternos()
+    }
+
+    /**
      * Aplica los filtros seleccionados en el ModalBottomSheet de forma reactiva.
      */
     fun aplicarFiltros(nuevosFiltros: TurnoFiltros) {
@@ -58,6 +73,7 @@ class DashboardViewModel : ViewModel() {
      */
     fun limpiarFiltros() {
         _filtros.value = TurnoFiltros()
+        _fechaSeleccionadaCalendario.value = null
         aplicarFiltrosInternos()
     }
 
@@ -70,6 +86,7 @@ class DashboardViewModel : ViewModel() {
     fun removerFiltroFechas() {
         val actual = _filtros.value
         _filtros.value = actual.copy(fechaDesde = null, fechaHasta = null)
+        _fechaSeleccionadaCalendario.value = null
         aplicarFiltrosInternos()
     }
 
@@ -80,11 +97,19 @@ class DashboardViewModel : ViewModel() {
     }
 
     private fun aplicarFiltrosInternos() {
-        val filtrados = TurnoFiltros.filtrarTurnos(todosLosTurnos, _filtros.value)
+        var filtrados = TurnoFiltros.filtrarTurnos(todosLosTurnos, _filtros.value)
+        val fechaCalendario = _fechaSeleccionadaCalendario.value
+        if (!fechaCalendario.isNullOrBlank()) {
+            filtrados = filtrados.filter { turno ->
+                extraerFechaIso(turno.fechaHora) == fechaCalendario
+            }
+        }
+
         _uiState.value = DashboardUiState.Success(
             turnos = filtrados,
             totalSinFiltrar = todosLosTurnos.size,
-            filtros = _filtros.value
+            filtros = _filtros.value,
+            todosLosTurnos = todosLosTurnos
         )
     }
 }
