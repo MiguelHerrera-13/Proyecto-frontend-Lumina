@@ -4,8 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -21,17 +25,20 @@ import com.lumina.frontend.data.remote.dto.TurnoResponseDto
 import com.lumina.frontend.ui.components.AccionTurno
 import com.lumina.frontend.ui.components.TurnoAccionDialog
 import com.lumina.frontend.ui.components.TurnoDetailDialog
+import com.lumina.frontend.ui.components.TurnoFiltrosBottomSheet
 import com.lumina.frontend.ui.viewmodel.DashboardUiState
 import com.lumina.frontend.ui.viewmodel.DashboardViewModel
 import com.lumina.frontend.util.CalendarExportHelper
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel = viewModel(),
     pacienteId: Long = 1L
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val filtros by viewModel.filtros.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -40,6 +47,8 @@ fun DashboardScreen(
     var turnoSeleccionadoParaDetalle by remember { mutableStateOf<TurnoResponseDto?>(null) }
     // Estado del diálogo modal de cancelación / reprogramación
     var turnoSeleccionadoParaAccion by remember { mutableStateOf<Pair<Long, AccionTurno>?>(null) }
+    // Estado del bottom sheet de filtros
+    var mostrarFiltrosSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(pacienteId) {
         viewModel.loadTurnos(pacienteId)
@@ -47,7 +56,50 @@ fun DashboardScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = Color(0xFFE8F0FE)
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            text = "Mis Turnos Médicos",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (filtros.tieneFiltrosActivos) {
+                            Text(
+                                text = "Filtros activos (${filtros.cantidadFiltrosActivos})",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    // Botón superior para desplegar ModalBottomSheet de filtros
+                    IconButton(onClick = { mostrarFiltrosSheet = true }) {
+                        BadgedBox(
+                            badge = {
+                                if (filtros.tieneFiltrosActivos) {
+                                    Badge(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    ) {
+                                        Text("${filtros.cantidadFiltrosActivos}")
+                                    }
+                                }
+                            }
+                        ) {
+                            Text(text = "🌪️", fontSize = 20.sp)
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    titleContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            )
+        },
+        containerColor = Color(0xFFF1F5F9)
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -63,52 +115,156 @@ fun DashboardScreen(
                     )
                 }
                 is DashboardUiState.Success -> {
-                    val turnos = (uiState as DashboardUiState.Success).turnos
-                    if (turnos.isEmpty()) {
-                        Text(
-                            text = "No tienes turnos programados en este momento.",
-                            modifier = Modifier.align(Alignment.Center),
-                            color = Color.Gray,
-                            fontSize = 16.sp
-                        )
-                    } else {
-                        LazyColumn(
-                            contentPadding = PaddingValues(bottom = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            item {
-                                Text(
-                                    text = "Mis Turnos Médicos",
-                                    fontSize = 26.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF1F2937),
-                                    modifier = Modifier.padding(bottom = 8.dp, top = 16.dp)
-                                )
-                            }
-                            items(turnos) { turno ->
-                                TurnoCard(
-                                    turno = turno,
-                                    onVerDetalle = {
-                                        turnoSeleccionadoParaDetalle = turno
-                                    },
-                                    onExportarCalendario = {
-                                        CalendarExportHelper.exportarTurnoAlCalendario(
-                                            context = context,
-                                            turno = turno,
-                                            onFeedback = { _, mensaje ->
-                                                coroutineScope.launch {
-                                                    snackbarHostState.showSnackbar(mensaje)
-                                                }
+                    val successState = uiState as DashboardUiState.Success
+                    val turnos = successState.turnos
+
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // CHIPS INFORMATIVOS DE FILTROS ACTIVOS EN CABECERA
+                        if (filtros.tieneFiltrosActivos) {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding = PaddingValues(vertical = 8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                item {
+                                    SuggestionChip(
+                                        onClick = { viewModel.limpiarFiltros() },
+                                        label = { Text("Quitar todos los filtros", fontWeight = FontWeight.Bold) }
+                                    )
+                                }
+
+                                items(filtros.estadosSeleccionados.toList()) { estado ->
+                                    InputChip(
+                                        selected = true,
+                                        onClick = { viewModel.removerEstado(estado) },
+                                        label = { Text(estado) },
+                                        trailingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Remover $estado",
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    )
+                                }
+
+                                if (filtros.profesionalQuery.isNotBlank()) {
+                                    item {
+                                        InputChip(
+                                            selected = true,
+                                            onClick = { viewModel.removerFiltroProfesional() },
+                                            label = { Text("Médico: ${filtros.profesionalQuery}") },
+                                            trailingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = "Remover filtro médico",
+                                                    modifier = Modifier.size(16.dp)
+                                                )
                                             }
                                         )
-                                    },
-                                    onCancelar = {
-                                        turnoSeleccionadoParaAccion = Pair(turno.id, AccionTurno.CANCELAR)
-                                    },
-                                    onReprogramar = {
-                                        turnoSeleccionadoParaAccion = Pair(turno.id, AccionTurno.REPROGRAMAR)
                                     }
-                                )
+                                }
+
+                                if (filtros.fechaDesde != null || filtros.fechaHasta != null) {
+                                    item {
+                                        val label = "${filtros.fechaDesde ?: "..."} a ${filtros.fechaHasta ?: "..."}"
+                                        InputChip(
+                                            selected = true,
+                                            onClick = { viewModel.removerFiltroFechas() },
+                                            label = { Text("Fechas: $label") },
+                                            trailingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = "Remover filtro fechas",
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        // LISTA DE TURNOS O ESTADO VACÍO
+                        if (turnos.isEmpty()) {
+                            Card(
+                                shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 32.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(28.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(text = "🔍", fontSize = 42.sp)
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = if (filtros.tieneFiltrosActivos)
+                                            "No se encontraron turnos con los filtros aplicados."
+                                        else
+                                            "No tienes turnos programados en este momento.",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = if (filtros.tieneFiltrosActivos)
+                                            "Prueba modificando o eliminando los filtros seleccionados."
+                                        else
+                                            "Cuando agendes nuevos turnos, aparecerán en este panel.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Color.Gray,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    if (filtros.tieneFiltrosActivos) {
+                                        Spacer(modifier = Modifier.height(18.dp))
+                                        Button(
+                                            onClick = { viewModel.limpiarFiltros() },
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Text("Restablecer todos los filtros")
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            LazyColumn(
+                                contentPadding = PaddingValues(bottom = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(turnos) { turno ->
+                                    TurnoCard(
+                                        turno = turno,
+                                        onVerDetalle = {
+                                            turnoSeleccionadoParaDetalle = turno
+                                        },
+                                        onExportarCalendario = {
+                                            CalendarExportHelper.exportarTurnoAlCalendario(
+                                                context = context,
+                                                turno = turno,
+                                                onFeedback = { _, mensaje ->
+                                                    coroutineScope.launch {
+                                                        snackbarHostState.showSnackbar(mensaje)
+                                                    }
+                                                }
+                                            )
+                                        },
+                                        onCancelar = {
+                                            turnoSeleccionadoParaAccion = Pair(turno.id, AccionTurno.CANCELAR)
+                                        },
+                                        onReprogramar = {
+                                            turnoSeleccionadoParaAccion = Pair(turno.id, AccionTurno.REPROGRAMAR)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -120,7 +276,7 @@ fun DashboardScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "Oh no, ocurrió un error",
+                            text = "Ocurrió un error al cargar los turnos",
                             color = MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.Bold
                         )
@@ -172,6 +328,28 @@ fun DashboardScreen(
                     snackbarHostState.showSnackbar(mensajeExito)
                 }
                 viewModel.loadTurnos(pacienteId)
+            }
+        )
+    }
+
+    // Modal Bottom Sheet de Filtros Avanzados
+    if (mostrarFiltrosSheet) {
+        TurnoFiltrosBottomSheet(
+            filtrosActuales = filtros,
+            onDismissRequest = { mostrarFiltrosSheet = false },
+            onAplicarFiltros = { nuevosFiltros ->
+                viewModel.aplicarFiltros(nuevosFiltros)
+                coroutineScope.launch {
+                    val cantidad = nuevosFiltros.cantidadFiltrosActivos
+                    val msg = if (cantidad > 0) "Filtros aplicados ($cantidad activos)" else "Filtros restablecidos"
+                    snackbarHostState.showSnackbar(msg)
+                }
+            },
+            onLimpiarFiltros = {
+                viewModel.limpiarFiltros()
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Filtros restablecidos a valores iniciales.")
+                }
             }
         )
     }
