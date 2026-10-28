@@ -30,6 +30,7 @@ fun HomeScreen(
     onNavigateToPatients: () -> Unit,
     onNavigateToDashboard: () -> Unit = {},
     onNavigateToIngesta: () -> Unit = {},
+    onNavigateToCrearTurno: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -113,6 +114,18 @@ fun HomeScreen(
             ) {
                 Text(
                     text = "Mis Turnos Médicos (Acceso directo)",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedButton(
+                onClick = onNavigateToCrearTurno,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Agendar Turno Médico (Acceso directo)",
                     style = MaterialTheme.typography.labelLarge
                 )
             }

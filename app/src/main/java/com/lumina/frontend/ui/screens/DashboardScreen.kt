@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -29,6 +30,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
@@ -75,7 +77,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel = viewModel(),
-    pacienteId: Long = 1L
+    pacienteId: Long = 1L,
+    onNavigateToCrearTurno: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val filtros by viewModel.filtros.collectAsState()
@@ -116,6 +119,15 @@ fun DashboardScreen(
                     }
                 },
                 actions = {
+                    // Botón directo para solicitar/agendar un nuevo turno (Issue #21)
+                    IconButton(onClick = onNavigateToCrearTurno) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Agendar Turno",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
                     // Botón superior para desplegar ModalBottomSheet de filtros
                     IconButton(onClick = { mostrarFiltrosSheet = true }) {
                         BadgedBox(
@@ -138,6 +150,15 @@ fun DashboardScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                     titleContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            )
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = onNavigateToCrearTurno,
+                icon = { Icon(Icons.Default.Add, contentDescription = "Nuevo Turno") },
+                text = { Text("Nuevo Turno", fontWeight = FontWeight.Bold) },
+                containerColor = Color(0xFF0284C7),
+                contentColor = Color.White
             )
         },
         containerColor = Color(0xFFF1F5F9)
@@ -307,12 +328,21 @@ fun DashboardScreen(
                                         ) {
                                             Text(if (tieneFiltroDia) "Ver todos los días" else "Restablecer todos los filtros")
                                         }
+                                    } else {
+                                        Spacer(modifier = Modifier.height(18.dp))
+                                        Button(
+                                            onClick = onNavigateToCrearTurno,
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Text("Agendar un nuevo turno", fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
                             }
                         } else {
                             LazyColumn(
-                                contentPadding = PaddingValues(bottom = 16.dp),
+                                contentPadding = PaddingValues(bottom = 80.dp), // Espacio para el FAB
                                 verticalArrangement = Arrangement.spacedBy(16.dp),
                                 modifier = Modifier.fillMaxSize()
                             ) {

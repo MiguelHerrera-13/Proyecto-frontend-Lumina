@@ -1,6 +1,7 @@
 package com.lumina.frontend.data.remote
 
 import com.lumina.frontend.data.remote.dto.CancelarTurnoRequestDto
+import com.lumina.frontend.data.remote.dto.CrearTurnoRequestDto
 import com.lumina.frontend.data.remote.dto.ReprogramarTurnoRequestDto
 import com.lumina.frontend.data.remote.dto.TurnoResponseDto
 import retrofit2.Response
@@ -12,6 +13,9 @@ import retrofit2.http.Path
 interface TurnoApiService {
     @GET("/api/turnos/cuidador/{id}")
     suspend fun getTurnosPaciente(@Path("id") pacienteId: Long): Response<List<TurnoResponseDto>>
+
+    @POST("/api/turnos")
+    suspend fun crearTurno(@Body request: CrearTurnoRequestDto): Response<TurnoResponseDto>
 
     @POST("/api/turnos/{id}/cancelar")
     suspend fun cancelarTurno(
