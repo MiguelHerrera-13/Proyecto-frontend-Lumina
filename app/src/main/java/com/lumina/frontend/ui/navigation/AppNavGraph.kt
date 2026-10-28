@@ -1,4 +1,4 @@
-﻿package com.lumina.frontend.ui.navigation
+package com.lumina.frontend.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -29,7 +29,6 @@ fun AppNavGraph(
                     navController.navigate(Screen.Login.route)
                 },
                 onNavigateToPatients = {
-                    // Por facilidad de prueba, mandemos el botón de pacientes al Dashboard temporalmente
                     navController.navigate(Screen.Patients.route)
                 }
             )
