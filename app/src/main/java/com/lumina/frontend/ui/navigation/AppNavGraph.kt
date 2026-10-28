@@ -43,7 +43,7 @@ fun AppNavGraph(
                     navController.popBackStack()
                 },
                 onLoginSuccess = {
-                    navController.navigate(Screen.Dashboard.route) {
+                    navController.navigate(Screen.Patients.route) {
                         popUpTo(Screen.Home.route)
                     }
                 },

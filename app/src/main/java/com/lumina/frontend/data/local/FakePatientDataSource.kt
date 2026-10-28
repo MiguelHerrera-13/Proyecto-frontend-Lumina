@@ -71,6 +71,20 @@ object FakePatientDataSource {
                 fechaNacimiento = "1939-01-18",
                 diagnosticoFase = "Monitoreo cognitivo",
                 activo = true
+            ),
+            PacienteResponseDto(
+                idPaciente = 5L,
+                nombreCompleto = "Ana Sofía Benítez",
+                fechaNacimiento = "1960-07-22",
+                diagnosticoFase = "Rehabilitación motriz",
+                activo = false
+            ),
+            PacienteResponseDto(
+                idPaciente = 6L,
+                nombreCompleto = "Roberto Gómez",
+                fechaNacimiento = "1950-03-15",
+                diagnosticoFase = "Control posoperatorio",
+                activo = true
             )
         )
     }
