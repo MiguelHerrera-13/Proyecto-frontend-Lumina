@@ -30,7 +30,7 @@ fun AppNavGraph(
                 },
                 onNavigateToPatients = {
                     // Por facilidad de prueba, mandemos el botón de pacientes al Dashboard temporalmente
-                    navController.navigate(Screen.Dashboard.route)
+                    navController.navigate(Screen.Patients.route)
                 }
             )
         }
@@ -41,7 +41,7 @@ fun AppNavGraph(
                     navController.popBackStack()
                 },
                 onLoginSuccess = {
-                    navController.navigate(Screen.Dashboard.route) {
+                    navController.navigate(Screen.Patients.route) {
                         popUpTo(Screen.Home.route)
                     }
                 },
