@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lumina.frontend.data.remote.dto.TurnoResponseDto
+import com.lumina.frontend.ui.components.AccionTurno
+import com.lumina.frontend.ui.components.TurnoAccionDialog
 import com.lumina.frontend.ui.components.TurnoDetailDialog
 import com.lumina.frontend.ui.viewmodel.DashboardUiState
 import com.lumina.frontend.ui.viewmodel.DashboardViewModel
@@ -27,7 +29,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel = viewModel(),
-    pacienteId: Long = 1L // ID de prueba por ahora para que conecte con la API
+    pacienteId: Long = 1L
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -36,6 +38,8 @@ fun DashboardScreen(
 
     // Estado del diálogo de detalle del turno
     var turnoSeleccionadoParaDetalle by remember { mutableStateOf<TurnoResponseDto?>(null) }
+    // Estado del diálogo modal de cancelación / reprogramación
+    var turnoSeleccionadoParaAccion by remember { mutableStateOf<Pair<Long, AccionTurno>?>(null) }
 
     LaunchedEffect(pacienteId) {
         viewModel.loadTurnos(pacienteId)
@@ -97,6 +101,12 @@ fun DashboardScreen(
                                                 }
                                             }
                                         )
+                                    },
+                                    onCancelar = {
+                                        turnoSeleccionadoParaAccion = Pair(turno.id, AccionTurno.CANCELAR)
+                                    },
+                                    onReprogramar = {
+                                        turnoSeleccionadoParaAccion = Pair(turno.id, AccionTurno.REPROGRAMAR)
                                     }
                                 )
                             }
@@ -126,15 +136,42 @@ fun DashboardScreen(
         }
     }
 
-    // Modal de Detalle de Turno con botón de exportación al calendario nativo
+    // Modal de Detalle de Turno
     turnoSeleccionadoParaDetalle?.let { turno ->
         TurnoDetailDialog(
             turno = turno,
             onDismiss = { turnoSeleccionadoParaDetalle = null },
+            onCancelarTurno = {
+                val id = turno.id
+                turnoSeleccionadoParaDetalle = null
+                turnoSeleccionadoParaAccion = Pair(id, AccionTurno.CANCELAR)
+            },
+            onReprogramarTurno = {
+                val id = turno.id
+                turnoSeleccionadoParaDetalle = null
+                turnoSeleccionadoParaAccion = Pair(id, AccionTurno.REPROGRAMAR)
+            },
             onCalendarExportFeedback = { _, mensaje ->
                 coroutineScope.launch {
                     snackbarHostState.showSnackbar(mensaje)
                 }
+            }
+        )
+    }
+
+    // Modal de Cancelación / Reprogramación
+    turnoSeleccionadoParaAccion?.let { (id, accion) ->
+        TurnoAccionDialog(
+            turnoId = id,
+            accionInicial = accion,
+            onDismiss = {
+                turnoSeleccionadoParaAccion = null
+            },
+            onSuccess = { mensajeExito ->
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(mensajeExito)
+                }
+                viewModel.loadTurnos(pacienteId)
             }
         )
     }
@@ -144,8 +181,12 @@ fun DashboardScreen(
 fun TurnoCard(
     turno: TurnoResponseDto,
     onVerDetalle: () -> Unit = {},
-    onExportarCalendario: () -> Unit = {}
+    onExportarCalendario: () -> Unit = {},
+    onCancelar: () -> Unit = {},
+    onReprogramar: () -> Unit = {}
 ) {
+    val isCancelado = turno.estado == "CANCELADO"
+
     Card(
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
@@ -218,30 +259,49 @@ fun TurnoCard(
             Divider(color = Color(0xFFF1F5F9))
             Spacer(modifier = Modifier.height(10.dp))
 
+            // Fila de acciones principales
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onVerDetalle) {
-                    Text("Ver Detalle", fontWeight = FontWeight.SemiBold)
-                }
-
                 Button(
                     onClick = onExportarCalendario,
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF0284C7)
                     ),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    Text(text = "🗓️", fontSize = 14.sp)
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = "🗓️", fontSize = 13.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "A mi calendario",
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
+                }
+
+                if (!isCancelado) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(
+                            onClick = onCancelar,
+                            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFDC2626)),
+                            contentPadding = PaddingValues(horizontal = 8.dp)
+                        ) {
+                            Text("Cancelar", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                        }
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        OutlinedButton(
+                            onClick = onReprogramar,
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text("Reprogramar", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                        }
+                    }
                 }
             }
         }
