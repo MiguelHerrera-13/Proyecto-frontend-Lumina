@@ -1,4 +1,4 @@
-package com.lumina.frontend.ui.screens
+﻿package com.lumina.frontend.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -80,7 +81,8 @@ fun DashboardScreen(
     pacienteId: Long = 1L,
     onNavigateToCrearTurno: () -> Unit = {},
     onNavigateToTurnoDetail: (Long) -> Unit = {},
-    onNavigateToCrearReporte: (Long) -> Unit = {}
+    onNavigateToCrearReporte: (Long) -> Unit = {},
+    onNavigateToPerfil: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val filtros by viewModel.filtros.collectAsState()
@@ -126,6 +128,15 @@ fun DashboardScreen(
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "Agendar Turno",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    // Botón para navegar al perfil del usuario (Issue #18)
+                    IconButton(onClick = onNavigateToPerfil) {
+                        Icon(
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = "Mi Perfil",
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }

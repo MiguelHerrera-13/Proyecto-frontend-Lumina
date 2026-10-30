@@ -16,6 +16,7 @@ import com.lumina.frontend.ui.screens.IngestaScreen
 import com.lumina.frontend.ui.screens.LoginScreen
 import com.lumina.frontend.ui.screens.PatientDetailScreen
 import com.lumina.frontend.ui.screens.PatientsScreen
+import com.lumina.frontend.ui.screens.ProfileScreen
 import com.lumina.frontend.ui.screens.RegisterScreen
 import com.lumina.frontend.ui.screens.ReporteDiarioScreen
 import com.lumina.frontend.ui.screens.TurnoDetailScreen
@@ -96,6 +97,9 @@ fun AppNavGraph(
                 },
                 onNavigateToCrearReporte = { turnoId ->
                     navController.navigate(Screen.CrearReporteDiario.createRoute(turnoId))
+                },
+                onNavigateToPerfil = {
+                    navController.navigate(Screen.Profile.route)
                 }
             )
         }
@@ -113,6 +117,14 @@ fun AppNavGraph(
 
         composable(route = Screen.Ingesta.route) {
             IngestaScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(route = Screen.Profile.route) {
+            ProfileScreen(
                 onNavigateBack = {
                     navController.popBackStack()
                 }
