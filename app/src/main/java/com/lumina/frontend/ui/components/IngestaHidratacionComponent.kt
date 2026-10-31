@@ -1,4 +1,4 @@
-package com.lumina.frontend.ui.components
+﻿package com.lumina.frontend.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -505,8 +505,8 @@ fun IngestaHidratacionComponent(
                                 )
                             },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = if (isDisfagia) Color(0xFFFEE2E2) else MaterialTheme.colorScheme.secondaryContainer,
-                                selectedLabelColor = if (isDisfagia) Color(0xFF991B1B) else MaterialTheme.colorScheme.onSecondaryContainer
+                                selectedContainerColor = if (isDisfagia) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
+                                selectedLabelColor = if (isDisfagia) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         )
                     }

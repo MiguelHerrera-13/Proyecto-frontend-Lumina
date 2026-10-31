@@ -49,12 +49,6 @@ import com.lumina.frontend.util.CalendarExportHelper
 
 /**
  * Diálogo modal para la vista de detalle de un turno médico (TurnoDetailDialog).
- *
- * Cumple con los criterios de Issue #30 (Frontend #22) e Issue #33 (Frontend #25):
- * 1. Badge de estado con color distintivo (PENDIENTE, EN_CURSO, COMPLETADO, CANCELADO).
- * 2. Botón "Iniciar Turno" visible si está pendiente y en horario.
- * 3. Botón "Finalizar y Crear Reporte" que redirige al reporte diario.
- * 4. Botón "Añadir a mi calendario" para exportación con CalendarContract.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -148,19 +142,19 @@ fun TurnoDetailDialog(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Paciente: ${turno.nombrePaciente ?: "María Elena González"}",
+                                    text = "Paciente: ${turno.nombrePaciente ?: "Roberto Gómez"}",
                                     fontSize = 12.sp,
-                                    color = Color.Gray
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
 
-                            // Badge de Estado con Color Distintivo (PENDIENTE, EN_CURSO, COMPLETADO, CANCELADO)
+                            // Badge de Estado con Color Distintivo
                             val (badgeBg, badgeText, badgeIcon) = when (estadoLocal) {
-                                "PENDIENTE", "PROGRAMADO" -> Triple(Color(0xFFFEF3C7), Color(0xFF92400E), "⏳")
-                                "EN_CURSO" -> Triple(Color(0xFFDBEAFE), Color(0xFF1D4ED8), "⏱️")
-                                "COMPLETADO" -> Triple(Color(0xFFD1FAE5), Color(0xFF065F46), "✅")
-                                "CANCELADO" -> Triple(Color(0xFFFEE2E2), Color(0xFF991B1B), "❌")
-                                else -> Triple(Color(0xFFF1F5F9), Color(0xFF475569), "📋")
+                                "PENDIENTE", "PROGRAMADO" -> Triple(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer, "⏳")
+                                "EN_CURSO" -> Triple(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer, "⏱️")
+                                "COMPLETADO" -> Triple(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer, "✅")
+                                "CANCELADO" -> Triple(MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer, "❌")
+                                else -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "📋")
                             }
 
                             Box(
@@ -215,7 +209,7 @@ fun TurnoDetailDialog(
                             onIniciarTurno?.invoke(turno.id)
                         },
                         shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp)
@@ -276,7 +270,7 @@ fun TurnoDetailDialog(
 
                 // Acciones secundarias (Reprogramar / Cancelar)
                 if (!isCancelado && !isCompletado && (onCancelarTurno != null || onReprogramarTurno != null)) {
-                    Divider(color = Color(0xFFE2E8F0))
+                    Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -295,7 +289,7 @@ fun TurnoDetailDialog(
                         onCancelarTurno?.let { onCanc ->
                             TextButton(
                                 onClick = onCanc,
-                                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFDC2626)),
+                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text("Cancelar", fontSize = 12.sp)

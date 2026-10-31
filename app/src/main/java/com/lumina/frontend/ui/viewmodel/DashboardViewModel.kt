@@ -2,6 +2,8 @@ package com.lumina.frontend.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lumina.frontend.data.local.SessionManager
+import com.lumina.frontend.data.local.UserRole
 import com.lumina.frontend.data.model.TurnoFiltros
 import com.lumina.frontend.data.remote.dto.TurnoResponseDto
 import com.lumina.frontend.data.repository.TurnoRepository

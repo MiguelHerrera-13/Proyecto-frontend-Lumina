@@ -3,6 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+if (System.getProperty("user.name") == "salom" && file("C:/Users/salom/.build_lumina/app").parentFile?.exists() == true) {
+    layout.buildDirectory.set(file("C:/Users/salom/.build_lumina/app"))
+}
+
 android {
     namespace = "com.lumina.frontend"
     compileSdk = 34
@@ -53,6 +57,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.7.4")
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")

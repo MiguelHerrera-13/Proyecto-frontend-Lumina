@@ -81,5 +81,20 @@ class PatientDetailViewModel(
             }
         }
     }
-}
 
+    fun actualizarDatosPaciente(
+        id: Long,
+        nombre: String,
+        fechaNacimiento: String,
+        diagnostico: String,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            val res = detailRepository.actualizarPaciente(id, nombre, fechaNacimiento, diagnostico)
+            if (res.isSuccess) {
+                cargarDetallePaciente(id)
+                onSuccess()
+            }
+        }
+    }
+}

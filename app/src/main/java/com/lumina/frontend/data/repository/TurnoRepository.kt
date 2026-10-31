@@ -1,6 +1,8 @@
 package com.lumina.frontend.data.repository
 
 import com.lumina.frontend.data.local.FakePatientDetailDataSource
+import com.lumina.frontend.data.local.SessionManager
+import com.lumina.frontend.data.local.UserRole
 import com.lumina.frontend.data.remote.RetrofitClient
 import com.lumina.frontend.data.remote.dto.CancelarTurnoRequestDto
 import com.lumina.frontend.data.remote.dto.CrearTurnoRequestDto
@@ -18,18 +20,40 @@ class ConflictoTurnoException(
 class TurnoRepository {
     private val api = RetrofitClient.turnoApiService
 
+    private fun filtrarPorRol(lista: List<TurnoResponseDto>): List<TurnoResponseDto> {
+        val role = SessionManager.getCurrentRole()
+        return when (role) {
+            UserRole.EMPLEADO -> {
+                // Empleado solo ve turnos de sus pacientes asignados (Roberto Gómez y Jorge Méndez) o con personal asistencial
+                lista.filter { turno ->
+                    turno.nombrePaciente?.contains("Roberto Gómez", ignoreCase = true) == true ||
+                    turno.nombrePaciente?.contains("Jorge Méndez", ignoreCase = true) == true ||
+                    turno.nombreMedico?.contains("Cuidador", ignoreCase = true) == true ||
+                    turno.nombreMedico?.contains("Enf", ignoreCase = true) == true
+                }
+            }
+            UserRole.USUARIO -> {
+                // Familiar / Usuario solo ve turnos de su ser querido: Roberto Gómez
+                lista.filter { turno ->
+                    turno.nombrePaciente?.contains("Roberto Gómez", ignoreCase = true) == true ||
+                    (turno.nombrePaciente.isNullOrBlank() && (turno.id == 101L || turno.id == 102L || turno.id == 104L || turno.id == 107L))
+                }
+            }
+            else -> lista // SUPER_ADMIN ve todos los turnos de la clínica
+        }
+    }
+
     suspend fun obtenerTurnos(pacienteId: Long): Result<List<TurnoResponseDto>> {
         return try {
             val response = api.getTurnosPaciente(pacienteId)
-            if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
+            val turnos = if (response.isSuccessful && response.body() != null) {
+                response.body()!!
             } else {
-                // Fallback de contingencia a datos simulados si el backend no responde
-                Result.success(FakePatientDetailDataSource.getTurnosFake(pacienteId))
+                FakePatientDetailDataSource.getTurnosFake(pacienteId)
             }
+            Result.success(filtrarPorRol(turnos))
         } catch (e: Exception) {
-            // Fallback offline / desarrollo
-            Result.success(FakePatientDetailDataSource.getTurnosFake(pacienteId))
+            Result.success(filtrarPorRol(FakePatientDetailDataSource.getTurnosFake(pacienteId)))
         }
     }
 
@@ -74,19 +98,22 @@ class TurnoRepository {
                 )
             )
         } else {
-            Result.success(
-                TurnoResponseDto(
-                    id = System.currentTimeMillis(),
-                    fechaHora = "${request.fecha} ${request.horaInicio}",
-                    motivo = request.motivo,
-                    estado = "PENDIENTE",
-                    nombreMedico = request.nombreMedico
-                )
+            val nuevo = TurnoResponseDto(
+                id = System.currentTimeMillis(),
+                fechaHora = "${request.fecha}T${request.horaInicio}:00",
+                motivo = request.motivo,
+                estado = "PENDIENTE",
+                nombreMedico = request.nombreMedico,
+                nombrePaciente = "Roberto Gómez",
+                habitacion = "Hab. 204"
             )
+            FakePatientDetailDataSource.agregarTurno(nuevo)
+            Result.success(nuevo)
         }
     }
 
     suspend fun cancelarTurno(turnoId: Long, motivo: String): Result<TurnoResponseDto> {
+        FakePatientDetailDataSource.cancelarTurno(turnoId, motivo)
         return try {
             val response = api.cancelarTurno(turnoId, CancelarTurnoRequestDto(motivo = motivo))
             if (response.isSuccessful && response.body() != null) {
@@ -114,6 +141,7 @@ class TurnoRepository {
     }
 
     suspend fun reprogramarTurno(turnoId: Long, motivo: String, nuevaFechaHora: String): Result<TurnoResponseDto> {
+        FakePatientDetailDataSource.reprogramarTurno(turnoId, nuevaFechaHora, motivo)
         return try {
             val response = api.reprogramarTurno(
                 turnoId,

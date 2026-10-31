@@ -1,4 +1,5 @@
-package com.lumina.frontend.ui.components
+﻿package com.lumina.frontend.ui.components
+
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Today
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -92,6 +94,7 @@ data class DiaCalendario(
  * Optimizado contra recomposiciones innecesarias mediante granularidad de composables (DiaCalendarioCard),
  * memorización de colecciones con 'remember(turnos)' y claves estables en LazyRow.
  */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarioTurnosComponent(
     turnos: List<TurnoResponseDto>,
@@ -192,7 +195,12 @@ fun CalendarioTurnosComponent(
             ) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "📅", fontSize = 16.sp)
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = tituloMesAno,
@@ -221,16 +229,17 @@ fun CalendarioTurnosComponent(
                                 mesBase = mesBase.minusMonths(1)
                             }
                         },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ChevronLeft,
                             contentDescription = "Anterior",
-                            tint = Color(0xFF334155)
+                            tint = Color(0xFF334155),
+                            modifier = Modifier.size(18.dp)
                         )
                     }
 
-                    // Botón "Hoy"
+                    // Boton Hoy
                     Surface(
                         shape = RoundedCornerShape(10.dp),
                         color = Color(0xFFF1F5F9),
@@ -245,25 +254,25 @@ fun CalendarioTurnosComponent(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Today,
                                 contentDescription = "Ir a hoy",
-                                modifier = Modifier.size(14.dp),
+                                modifier = Modifier.size(13.dp),
                                 tint = MaterialTheme.colorScheme.primary
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
                             Text(
                                 text = "Hoy",
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
 
-                    // Botón para avanzar semana o mes
+                    // Boton Siguiente
                     IconButton(
                         onClick = {
                             if (modoCalendario == ModoCalendario.SEMANAL) {
@@ -272,37 +281,141 @@ fun CalendarioTurnosComponent(
                                 mesBase = mesBase.plusMonths(1)
                             }
                         },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ChevronRight,
                             contentDescription = "Siguiente",
-                            tint = Color(0xFF334155)
+                            tint = Color(0xFF334155),
+                            modifier = Modifier.size(18.dp)
                         )
                     }
 
                     // Selector de Modo: Semanal / Mensual
-                    FilterChip(
-                        selected = (modoCalendario == ModoCalendario.MENSUAL),
-                        onClick = {
-                            modoCalendario = if (modoCalendario == ModoCalendario.SEMANAL) {
-                                ModoCalendario.MENSUAL
-                            } else {
-                                ModoCalendario.SEMANAL
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (modoCalendario == ModoCalendario.MENSUAL) MaterialTheme.colorScheme.primaryContainer else Color(0xFFF1F5F9),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable {
+                                modoCalendario = if (modoCalendario == ModoCalendario.SEMANAL) ModoCalendario.MENSUAL else ModoCalendario.SEMANAL
                             }
-                        },
-                        label = {
-                            Text(
-                                text = if (modoCalendario == ModoCalendario.SEMANAL) "Mes" else "Semana",
-                                fontSize = 11.sp
-                            )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        ),
-                        modifier = Modifier.height(32.dp)
-                    )
+                    ) {
+                        Text(
+                            text = if (modoCalendario == ModoCalendario.SEMANAL) "Mes" else "Semana",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (modoCalendario == ModoCalendario.MENSUAL) MaterialTheme.colorScheme.onPrimaryContainer else Color(0xFF334155),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 }
             }
 

@@ -1,8 +1,5 @@
 package com.lumina.frontend.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -34,8 +31,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -63,28 +58,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lumina.frontend.data.local.SessionManager
+import com.lumina.frontend.data.local.UserRole
 import com.lumina.frontend.data.remote.dto.TurnoResponseDto
 import com.lumina.frontend.util.CalendarExportHelper
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-/**
- * Pantalla completa de Detalle de Turno (TurnoDetailScreen).
- *
- * Cumple con los requerimientos de la Issue Frontend #22 (Refs #30):
- * 1. Badge de estado con color distintivo (PENDIENTE, EN_CURSO, COMPLETADO, CANCELADO).
- * 2. Botón "Iniciar Turno" visible si el turno está pendiente y en horario.
- * 3. Botón "Finalizar y Crear Reporte" que redirija al formulario de reporte diario.
- * 4. Control de visibilidad de acciones según el rol del usuario (CUIDADOR, MEDICO, PACIENTE, ADMIN).
- * 5. Integración con exportación al calendario nativo de Android (Issue #33).
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TurnoDetailScreen(
     turno: TurnoResponseDto,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
-    userRole: String = "CUIDADOR",
+    userRole: String? = null,
     onIniciarTurno: ((Long) -> Unit)? = null,
     onFinalizarYCrearReporte: ((Long) -> Unit)? = null,
     onCancelarTurno: (() -> Unit)? = null,
@@ -94,36 +81,30 @@ fun TurnoDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    // Estado reactivo del turno para permitir transiciones de estado en la UI
     var estadoTurno by remember(turno.estado) {
         mutableStateOf(turno.estado?.uppercase() ?: "PENDIENTE")
     }
 
-    // Rol del usuario conectado (permite simular cómo Compose adapta la visibilidad de acciones)
-    var rolActual by remember { mutableStateOf(userRole) }
-
+    val currentRole = SessionManager.getCurrentRole() ?: UserRole.SUPER_ADMIN
     val isPendiente = estadoTurno == "PENDIENTE" || estadoTurno == "PROGRAMADO"
     val isEnCurso = estadoTurno == "EN_CURSO"
     val isCompletado = estadoTurno == "COMPLETADO"
     val isCancelado = estadoTurno == "CANCELADO"
 
-    // Comprobación de horario: se considera en horario si está programado para hoy o sin restricción estricta
     val hoyStr = remember { LocalDate.now().toString() }
     val estaEnHorario = remember(turno.fechaHora) {
         val fecha = turno.fechaHora
         fecha.contains(hoyStr) || fecha.startsWith("2026-10-28") || isPendiente
     }
 
-    // Roles autorizados para ejecutar acciones operativas de atención clínica
-    val esRolClinicoAutorizado = (rolActual == "CUIDADOR" || rolActual == "MEDICO" || rolActual == "ADMIN")
+    val esRolClinicoAutorizado = currentRole == UserRole.SUPER_ADMIN || currentRole == UserRole.EMPLEADO
 
-    // Colores e íconos distintivos por cada estado según el criterio de aceptación
     val (badgeBg, badgeText, badgeIcon) = when (estadoTurno) {
-        "PENDIENTE", "PROGRAMADO" -> Triple(Color(0xFFFEF3C7), Color(0xFF92400E), "⏳")
-        "EN_CURSO" -> Triple(Color(0xFFDBEAFE), Color(0xFF1D4ED8), "⏱️")
-        "COMPLETADO" -> Triple(Color(0xFFD1FAE5), Color(0xFF065F46), "✅")
-        "CANCELADO" -> Triple(Color(0xFFFEE2E2), Color(0xFF991B1B), "❌")
-        else -> Triple(Color(0xFFF1F5F9), Color(0xFF475569), "📋")
+        "PENDIENTE", "PROGRAMADO" -> Triple(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer, "⏳")
+        "EN_CURSO" -> Triple(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer, "⏱️")
+        "COMPLETADO" -> Triple(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer, "✅")
+        "CANCELADO" -> Triple(MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer, "❌")
+        else -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "📋")
     }
 
     Scaffold(
@@ -159,7 +140,7 @@ fun TurnoDetailScreen(
                 )
             )
         },
-        containerColor = Color(0xFFF8FAFC)
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -169,50 +150,11 @@ fun TurnoDetailScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-
-            // ========================================================
-            // SELECTOR DE ROL PARA DEMOSTRACIÓN (PREGUNTA ACADÉMICA)
-            // ========================================================
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = "🎭 Simular vista según Rol de Usuario Conectado:",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF475569)
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        listOf("CUIDADOR", "MEDICO", "PACIENTE").forEach { rol ->
-                            FilterChip(
-                                selected = (rolActual == rol),
-                                onClick = { rolActual = rol },
-                                label = { Text(rol, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-
-            // ========================================================
             // 1. TARJETA PRINCIPAL: MÉDICO Y BADGE DE ESTADO
-            // ========================================================
             ElevatedCard(
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp),
+                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
@@ -224,7 +166,7 @@ fun TurnoDetailScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFFE0F2FE),
+                                color = MaterialTheme.colorScheme.primaryContainer,
                                 modifier = Modifier.size(44.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
@@ -237,17 +179,16 @@ fun TurnoDetailScreen(
                                     text = turno.nombreMedico ?: "Dr. Asignado",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = "Especialidad Médica / Plan de Cuidados",
                                     fontSize = 12.sp,
-                                    color = Color.Gray
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
 
-                        // CRITERIO: Badge de estado con color distintivo
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = badgeBg,
@@ -270,21 +211,21 @@ fun TurnoDetailScreen(
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    Divider(color = Color(0xFFF1F5F9))
+                    Divider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Información del Paciente
+                    // Paciente
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = Color(0xFFEDE9FE),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
                             modifier = Modifier.size(36.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.Person,
                                     contentDescription = "Paciente",
-                                    tint = Color(0xFF6D28D9),
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -294,18 +235,18 @@ fun TurnoDetailScreen(
                             Text(
                                 text = "Paciente Asignado",
                                 fontSize = 11.sp,
-                                color = Color.Gray
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = turno.nombrePaciente ?: "María Elena González",
+                                text = turno.nombrePaciente ?: "Roberto Gómez",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF1E293B)
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = "${turno.habitacion ?: "Hab. 204"} • Cuidados Asistidos",
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -316,14 +257,14 @@ fun TurnoDetailScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = Color(0xFFE0F2FE),
+                            color = MaterialTheme.colorScheme.primaryContainer,
                             modifier = Modifier.size(36.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.CalendarMonth,
                                     contentDescription = "Horario",
-                                    tint = Color(0xFF0284C7),
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -331,15 +272,15 @@ fun TurnoDetailScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "Fecha y Horario Programado",
+                                text = "Fecha y Horario",
                                 fontSize = 11.sp,
-                                color = Color.Gray
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 text = turno.fechaHora,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0284C7)
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -350,14 +291,14 @@ fun TurnoDetailScreen(
                     Row(verticalAlignment = Alignment.Top) {
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = Color(0xFFFEF3C7),
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
                             modifier = Modifier.size(36.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.Info,
                                     contentDescription = "Motivo",
-                                    tint = Color(0xFFB45309),
+                                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -367,12 +308,12 @@ fun TurnoDetailScreen(
                             Text(
                                 text = "Motivo de la Consulta",
                                 fontSize = 11.sp,
-                                color = Color.Gray
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 text = turno.motivo ?: "Control de rutina y seguimiento del plan de cuidados.",
                                 fontSize = 14.sp,
-                                color = Color(0xFF334155),
+                                color = MaterialTheme.colorScheme.onSurface,
                                 lineHeight = 19.sp
                             )
                         }
@@ -380,42 +321,34 @@ fun TurnoDetailScreen(
                 }
             }
 
-            // ========================================================
             // 2. BOTONES DE ACCIÓN SEGÚN EL ESTADO DEL TURNO Y ROL
-            // ========================================================
             if (esRolClinicoAutorizado) {
-                // SECCIÓN CLÍNICA: INICIAR TURNO O FINALIZAR Y CREAR REPORTE
                 ElevatedCard(
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.elevatedCardColors(
-                        containerColor = when {
-                            isEnCurso -> Color(0xFFEFF6FF)
-                            isCompletado -> Color(0xFFF0FDF4)
-                            else -> Color.White
-                        }
+                        containerColor = MaterialTheme.colorScheme.surface
                     ),
                     elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(18.dp)) {
                         Text(
-                            text = "Acciones del Turno (Rol: $rolActual)",
+                            text = "Acciones del Turno (${currentRole.titulo})",
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
-                            color = Color(0xFF0F172A)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(6.dp))
 
                         when {
-                            // CRITERIO: Botón "Iniciar Turno" visible si está pendiente y en horario
                             isPendiente -> {
                                 Text(
                                     text = if (estaEnHorario)
                                         "El turno está listo para comenzar. Presiona el botón para dar inicio formal a la atención."
                                     else
-                                        "El turno está programado para hoy. Puedes iniciarlo al momento de comenzar la atención.",
+                                        "El turno está programado. Puedes iniciarlo al momento de comenzar la atención.",
                                     fontSize = 13.sp,
-                                    color = Color(0xFF475569)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.height(14.dp))
 
@@ -429,11 +362,11 @@ fun TurnoDetailScreen(
                                     },
                                     enabled = estaEnHorario,
                                     shape = RoundedCornerShape(14.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(52.dp)
-                                    ) {
+                                ) {
                                     Icon(
                                         imageVector = Icons.Default.PlayArrow,
                                         contentDescription = "Iniciar Turno",
@@ -448,11 +381,10 @@ fun TurnoDetailScreen(
                                 }
                             }
 
-                            // CRITERIO: Botón "Finalizar y Crear Reporte" que redirija al formulario de reporte diario
                             isEnCurso -> {
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
-                                    color = Color(0xFFDBEAFE),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -463,14 +395,14 @@ fun TurnoDetailScreen(
                                             modifier = Modifier
                                                 .size(10.dp)
                                                 .clip(CircleShape)
-                                                .background(Color(0xFF2563EB))
+                                                .background(MaterialTheme.colorScheme.primary)
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = "Turno en curso actualmente. Al terminar, elabora el reporte diario del paciente.",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF1E40AF)
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
                                         )
                                     }
                                 }
@@ -504,7 +436,7 @@ fun TurnoDetailScreen(
                             isCompletado -> {
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
-                                    color = Color(0xFFDCFCE7),
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -514,7 +446,7 @@ fun TurnoDetailScreen(
                                         Icon(
                                             imageVector = Icons.Default.CheckCircle,
                                             contentDescription = "Completado",
-                                            tint = Color(0xFF15803D),
+                                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                             modifier = Modifier.size(20.dp)
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
@@ -522,7 +454,7 @@ fun TurnoDetailScreen(
                                             text = "Turno completado. La bitácora y reporte clínico han sido guardados.",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF166534)
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
                                         )
                                     }
                                 }
@@ -541,44 +473,41 @@ fun TurnoDetailScreen(
                                 Text(
                                     text = "Este turno fue cancelado y no permite acciones operativas.",
                                     fontSize = 13.sp,
-                                    color = Color(0xFF991B1B)
+                                    color = MaterialTheme.colorScheme.error
                                 )
                             }
                         }
                     }
                 }
             } else {
-                // VISTA DE PACIENTE: MENSAJE INFORMATIVO SIN ACCIONES CLÍNICAS OPERATIVAS
                 OutlinedCard(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.outlinedCardColors(containerColor = Color(0xFFF1F5F9)),
-                    border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "Vista de Paciente",
+                            text = "Portal Familiar (Modo Consulta)",
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
-                            color = Color(0xFF334155)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Como paciente, puedes consultar los detalles de tu turno y sincronizarlo con tu calendario. El inicio y reporte clínico son gestionados por tu cuidador asignado.",
+                            text = "Puedes consultar los detalles del turno y sincronizarlo con tu calendario. El inicio de la atención y la carga clínica son gestionados por el personal médico de Lúmina.",
                             fontSize = 12.sp,
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = 17.sp
                         )
                     }
                 }
             }
 
-            // ========================================================
-            // 3. EXPORTACIÓN A CALENDARIO NATIVO (ISSUE #33)
-            // ========================================================
+            // 3. EXPORTACIÓN A CALENDARIO NATIVO
             ElevatedCard(
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.elevatedCardColors(containerColor = Color(0xFFF0F9FF)),
+                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -587,13 +516,13 @@ fun TurnoDetailScreen(
                         text = "Sincronización de Agenda",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        color = Color(0xFF0369A1)
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Guarda este turno en Google Calendar o app de calendario con recordatorio automático.",
                         fontSize = 13.sp,
-                        color = Color(0xFF0C4A6E)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -610,7 +539,7 @@ fun TurnoDetailScreen(
                             )
                         },
                         shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp)
@@ -626,9 +555,7 @@ fun TurnoDetailScreen(
                 }
             }
 
-            // ========================================================
             // 4. ACCIONES DE GESTIÓN (REPROGRAMAR / CANCELAR)
-            // ========================================================
             if (!isCancelado && !isCompletado && (onReprogramarTurno != null || onCancelarTurno != null)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -647,7 +574,7 @@ fun TurnoDetailScreen(
                     onCancelarTurno?.let { onCanc ->
                         TextButton(
                             onClick = onCanc,
-                            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFDC2626)),
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                             modifier = Modifier.weight(1f)
                         ) {
                             Text("Cancelar Turno")

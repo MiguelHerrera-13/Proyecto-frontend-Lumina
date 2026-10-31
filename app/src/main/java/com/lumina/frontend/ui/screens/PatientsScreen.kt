@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
+import com.lumina.frontend.data.local.SessionManager
+import com.lumina.frontend.data.local.UserRole
 import com.lumina.frontend.data.remote.dto.PacienteResponseDto
 import com.lumina.frontend.ui.viewmodel.PatientStatusFilter
 import com.lumina.frontend.ui.viewmodel.PatientsViewModel
@@ -41,12 +43,17 @@ fun PatientsScreen(
     val searchQuery by patientsViewModel.searchQuery.collectAsState()
     val selectedFilter by patientsViewModel.selectedFilter.collectAsState()
 
-    // Criterio 2: Usar collectAsLazyPagingItems() en el composable de la lista
+    // Flujo paginado reactivo
     val pagedPatients = patientsViewModel.pagedPatients.collectAsLazyPagingItems()
 
     var showPatientForm by remember { mutableStateOf(false) }
 
     val isFilteringOrSearching = searchQuery.isNotEmpty() || selectedFilter != PatientStatusFilter.ALL
+
+    LaunchedEffect(Unit) {
+        patientsViewModel.cargarPacientes()
+        pagedPatients.refresh()
+    }
 
     Scaffold(
         topBar = {
@@ -83,18 +90,20 @@ fun PatientsScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    patientsViewModel.limpiarEstado()
-                    showPatientForm = true
-                },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Agregar Paciente"
-                )
+            if (SessionManager.getCurrentRole() == UserRole.SUPER_ADMIN) {
+                FloatingActionButton(
+                    onClick = {
+                        patientsViewModel.limpiarEstado()
+                        showPatientForm = true
+                    },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Agregar Paciente"
+                    )
+                }
             }
         }
     ) { innerPadding ->
@@ -470,14 +479,14 @@ fun PatientCardItem(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "ID: #${paciente.idPaciente}  •  Nacimiento: ${paciente.fechaNacimiento}",
+                    text = "Nacimiento: ${paciente.fechaNacimiento}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Spacer(modifier = Modifier.height(2.dp))
 
-                val diagText = paciente.diagnosticoFase ?: "Sin especificar"
+                val diagText = paciente.diagnosticoFase ?: "Control clínico general"
                 Text(
                     text = "Diagnóstico: $diagText",
                     style = MaterialTheme.typography.bodySmall,
@@ -495,8 +504,8 @@ fun StatusBadge(
     activo: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val backgroundColor = if (activo) Color(0xFFE6F4EA) else Color(0xFFF1F3F4)
-    val textColor = if (activo) Color(0xFF137333) else Color(0xFF5F6368)
+    val backgroundColor = if (activo) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+    val textColor = if (activo) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
     val text = if (activo) "Activo" else "Inactivo"
 
     Box(

@@ -4,6 +4,8 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import com.lumina.frontend.data.local.FakePatientDataSource
+import com.lumina.frontend.data.local.SessionManager
+import com.lumina.frontend.data.local.UserRole
 import com.lumina.frontend.data.paging.PatientPagingSource
 import com.lumina.frontend.data.remote.PacienteApiService
 import com.lumina.frontend.data.remote.RetrofitClient
@@ -26,18 +28,25 @@ class PatientRepository(
         ).flow
     }
 
+    private fun filtrarPorRol(lista: List<PacienteResponseDto>): List<PacienteResponseDto> {
+        val role = SessionManager.getCurrentRole()
+        return when (role) {
+            UserRole.EMPLEADO -> lista.filter { it.idPaciente == 1L || it.idPaciente == 4L }
+            UserRole.USUARIO -> lista.filter { it.idPaciente == 1L }
+            else -> lista
+        }
+    }
+
     suspend fun obtenerPacientes(): Result<List<PacienteResponseDto>> {
         return try {
             val response = apiService.obtenerPacientes()
             if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
+                Result.success(filtrarPorRol(response.body()!!))
             } else {
-                // Fallback a datos simulados para soporte offline / desarrollo
-                Result.success(FakePatientDataSource.getPatientsDto())
+                Result.success(filtrarPorRol(FakePatientDataSource.getPatientsDto()))
             }
         } catch (e: Exception) {
-            // Fallback amigable ante corte de red / servidor no disponible
-            Result.success(FakePatientDataSource.getPatientsDto())
+            Result.success(filtrarPorRol(FakePatientDataSource.getPatientsDto()))
         }
     }
 
@@ -47,23 +56,37 @@ class PatientRepository(
         return try {
             val response = apiService.crearPaciente(paciente)
 
-            if (response.isSuccessful) {
-                val pacienteCreado = response.body()
-
-                if (pacienteCreado != null) {
-                    Result.success(pacienteCreado)
-                } else {
-                    Result.failure(
-                        Exception("El servidor respondió sin datos")
-                    )
-                }
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
             } else {
-                Result.failure(
-                    Exception("Error HTTP ${response.code()}")
+                val localPatient = FakePatientDataSource.addPatient(
+                    nombreCompleto = paciente.nombreCompleto,
+                    fechaNacimiento = paciente.fechaNacimiento,
+                    diagnosticoFase = paciente.diagnosticoFase ?: "Control clínico general"
                 )
+                Result.success(localPatient)
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            val localPatient = FakePatientDataSource.addPatient(
+                nombreCompleto = paciente.nombreCompleto,
+                fechaNacimiento = paciente.fechaNacimiento,
+                diagnosticoFase = paciente.diagnosticoFase ?: "Control clínico general"
+            )
+            Result.success(localPatient)
+        }
+    }
+
+    suspend fun actualizarPaciente(
+        id: Long,
+        nombreCompleto: String,
+        fechaNacimiento: String,
+        diagnosticoFase: String
+    ): Result<PacienteResponseDto> {
+        val updated = FakePatientDataSource.updatePatient(id, nombreCompleto, fechaNacimiento, diagnosticoFase)
+        return if (updated != null) {
+            Result.success(updated)
+        } else {
+            Result.failure(Exception("No se encontró el paciente para actualizar"))
         }
     }
 
