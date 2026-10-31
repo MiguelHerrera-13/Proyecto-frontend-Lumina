@@ -11,35 +11,55 @@ import androidx.navigation.navArgument
 import com.lumina.frontend.data.local.FakePatientDetailDataSource
 import com.lumina.frontend.ui.screens.CrearTurnoScreen
 import com.lumina.frontend.ui.screens.DashboardScreen
-import com.lumina.frontend.ui.screens.HomeScreen
 import com.lumina.frontend.ui.screens.IngestaScreen
 import com.lumina.frontend.ui.screens.LoginScreen
 import com.lumina.frontend.ui.screens.PatientDetailScreen
 import com.lumina.frontend.ui.screens.PatientsScreen
 import com.lumina.frontend.ui.screens.RegisterScreen
 import com.lumina.frontend.ui.screens.ReporteDiarioScreen
+import com.lumina.frontend.ui.screens.RoleDashboardScreen
 import com.lumina.frontend.ui.screens.TurnoDetailScreen
 
 @Composable
 fun AppNavGraph(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
-    startDestination: String = Screen.Home.route
+    startDestination: String = Screen.Login.route
 ) {
     NavHost(
         navController = navController,
         startDestination = startDestination,
         modifier = modifier
     ) {
-        composable(route = Screen.Home.route) {
-            HomeScreen(
-                onNavigateToLogin = {
-                    navController.navigate(Screen.Login.route)
+        // ==========================================
+        // PANTALLA PRINCIPAL: INICIO DE SESIÓN
+        // ==========================================
+        composable(route = Screen.Login.route) {
+            LoginScreen(
+                onNavigateBack = {
+                    // Pantalla raíz de acceso
                 },
+                onLoginSuccess = { _ ->
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
+                onNavigateToRegister = {
+                    navController.navigate(Screen.Register.route)
+                }
+            )
+        }
+
+        // ==========================================
+        // DASHBOARD SEGÚN EL ROL AUTENTICADO
+        // Super Admin (Todo) / Empleado / Usuario
+        // ==========================================
+        composable(route = Screen.Home.route) {
+            RoleDashboardScreen(
                 onNavigateToPatients = {
                     navController.navigate(Screen.Patients.route)
                 },
-                onNavigateToDashboard = {
+                onNavigateToTurnosCalendar = {
                     navController.navigate(Screen.Dashboard.route)
                 },
                 onNavigateToCrearTurno = {
@@ -47,22 +67,14 @@ fun AppNavGraph(
                 },
                 onNavigateToIngesta = {
                     navController.navigate(Screen.Ingesta.route)
-                }
-            )
-        }
-
-        composable(route = Screen.Login.route) {
-            LoginScreen(
-                onNavigateBack = {
-                    navController.popBackStack()
                 },
-                onLoginSuccess = {
-                    navController.navigate(Screen.Dashboard.route) {
-                        popUpTo(Screen.Home.route)
+                onNavigateToCrearReporte = { turnoId ->
+                    navController.navigate(Screen.CrearReporteDiario.createRoute(turnoId))
+                },
+                onLogout = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
                     }
-                },
-                onNavigateToRegister = {
-                    navController.navigate(Screen.Register.route)
                 }
             )
         }
@@ -86,8 +98,12 @@ fun AppNavGraph(
             )
         }
 
+        // Vista completa de Turnos Médicos y Calendario
         composable(route = Screen.Dashboard.route) {
             DashboardScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
                 onNavigateToCrearTurno = {
                     navController.navigate(Screen.CrearTurno.route)
                 },

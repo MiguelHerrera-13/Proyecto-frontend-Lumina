@@ -16,8 +16,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -28,6 +31,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,6 +49,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lumina.frontend.data.repository.TurnoRepository
+import com.lumina.frontend.data.local.SessionManager
+import com.lumina.frontend.data.local.UserRole
+import androidx.compose.material.icons.filled.Mail
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Locale
@@ -54,16 +61,6 @@ enum class AccionTurno(val titulo: String, val descripcion: String) {
     REPROGRAMAR("Reprogramar Turno", "Selecciona una nueva fecha, horario y el motivo del cambio.")
 }
 
-/**
- * Diálogo modal para cancelar o reprogramar un turno médico.
- *
- * Criterios de Aceptación:
- * 1. Campo de texto para justificar la cancelación o reprogramación (mínimo 10 caracteres obligatorios).
- * 2. En reprogramación, selectores integrados de nueva fecha y hora.
- * 3. Conexión a endpoints POST /api/turnos/{id}/cancelar y reprogramar.
- * 4. Desacoplamiento total: la vista principal solo pasa el ID y la acción; el diálogo
- *    se encarga de sus propias validaciones y llamadas de red.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TurnoAccionDialog(
@@ -83,8 +80,8 @@ fun TurnoAccionDialog(
     var horaSeleccionada by remember { mutableStateOf("") }
     var isSubmitting by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var mostrarConfirmacionEmail by remember { mutableStateOf(false) }
 
-    // Validación desacoplada interna
     val caracteresMinimos = 10
     val motivoValido = motivo.trim().length >= caracteresMinimos
     val fechaHoraValida = if (accionActual == AccionTurno.REPROGRAMAR) {
@@ -94,7 +91,6 @@ fun TurnoAccionDialog(
     }
     val formularioValido = motivoValido && fechaHoraValida && !isSubmitting
 
-    // Calendario para los pickers nativos
     val calendario = remember { Calendar.getInstance() }
 
     val datePickerDialog = remember {
@@ -125,7 +121,8 @@ fun TurnoAccionDialog(
         onDismissRequest = {
             if (!isSubmitting) onDismiss()
         },
-        shape = RoundedCornerShape(24.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(22.dp),
         modifier = modifier.fillMaxWidth(),
         title = {
             Row(
@@ -134,13 +131,15 @@ fun TurnoAccionDialog(
             ) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = if (accionActual == AccionTurno.CANCELAR) Color(0xFFFEE2E2) else Color(0xFFE0F2FE),
-                    modifier = Modifier.size(40.dp)
+                    color = if (accionActual == AccionTurno.CANCELAR) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(42.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = if (accionActual == AccionTurno.CANCELAR) "❌" else "🗓️",
-                            fontSize = 18.sp
+                        Icon(
+                            imageVector = if (accionActual == AccionTurno.CANCELAR) Icons.Default.Cancel else Icons.Default.EditCalendar,
+                            contentDescription = null,
+                            tint = if (accionActual == AccionTurno.CANCELAR) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
@@ -150,7 +149,7 @@ fun TurnoAccionDialog(
                         text = accionActual.titulo,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = if (accionActual == AccionTurno.CANCELAR) Color(0xFF991B1B) else MaterialTheme.colorScheme.onSurface
+                        color = if (accionActual == AccionTurno.CANCELAR) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "Turno #$turnoId",
@@ -179,8 +178,8 @@ fun TurnoAccionDialog(
                             onClick = { accionActual = accion },
                             label = { Text(accion.name.lowercase().replaceFirstChar { it.uppercase() }) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = if (accion == AccionTurno.CANCELAR) Color(0xFFFEE2E2) else MaterialTheme.colorScheme.primaryContainer,
-                                selectedLabelColor = if (accion == AccionTurno.CANCELAR) Color(0xFF991B1B) else MaterialTheme.colorScheme.onPrimaryContainer
+                                selectedContainerColor = if (accion == AccionTurno.CANCELAR) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
+                                selectedLabelColor = if (accion == AccionTurno.CANCELAR) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
                             ),
                             modifier = Modifier.weight(1f)
                         )
@@ -193,19 +192,19 @@ fun TurnoAccionDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                // SELECTORES DE FECHA Y HORA (Visibles únicamente en Reprogramación)
+                // SELECTORES DE FECHA Y HORA (Visibles únicamente en Reprogramación) con diseño unificado
                 if (accionActual == AccionTurno.REPROGRAMAR) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
-                            .padding(12.dp),
+                            
+                            .padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            text = "Nueva Fecha y Horario",
+                            text = "Nueva Fecha y Horario Programado",
                             style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
 
@@ -216,12 +215,20 @@ fun TurnoAccionDialog(
                             readOnly = true,
                             label = { Text("Fecha reprogramada") },
                             trailingIcon = {
-                                Text(
-                                    text = "📅",
-                                    fontSize = 18.sp,
+                                Icon(
+                                    imageVector = Icons.Default.CalendarMonth,
+                                    contentDescription = "Elegir fecha",
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.clickable { datePickerDialog.show() }
                                 )
                             },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                            ),
+                            shape = RoundedCornerShape(10.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { datePickerDialog.show() }
@@ -234,12 +241,20 @@ fun TurnoAccionDialog(
                             readOnly = true,
                             label = { Text("Hora reprogramada") },
                             trailingIcon = {
-                                Text(
-                                    text = "⏰",
-                                    fontSize = 18.sp,
+                                Icon(
+                                    imageVector = Icons.Default.AccessTime,
+                                    contentDescription = "Elegir hora",
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.clickable { timePickerDialog.show() }
                                 )
                             },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                            ),
+                            shape = RoundedCornerShape(10.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { timePickerDialog.show() }
@@ -288,6 +303,11 @@ fun TurnoAccionDialog(
                                 )
                             }
                         },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -321,13 +341,18 @@ fun TurnoAccionDialog(
 
                         resultado.fold(
                             onSuccess = {
-                                val mensaje = if (accionActual == AccionTurno.CANCELAR) {
-                                    "Turno #$turnoId cancelado correctamente."
+                                val role = SessionManager.getCurrentRole()
+                                if (role == UserRole.USUARIO) {
+                                    mostrarConfirmacionEmail = true
                                 } else {
-                                    "Turno #$turnoId reprogramado para $fechaSeleccionada $horaSeleccionada."
+                                    val mensaje = if (accionActual == AccionTurno.CANCELAR) {
+                                        "Turno #$turnoId cancelado correctamente."
+                                    } else {
+                                        "Turno #$turnoId reprogramado para $fechaSeleccionada $horaSeleccionada."
+                                    }
+                                    onSuccess(mensaje)
+                                    onDismiss()
                                 }
-                                onSuccess(mensaje)
-                                onDismiss()
                             },
                             onFailure = { ex ->
                                 errorMessage = "Error: ${ex.message ?: "No se pudo procesar la solicitud."}"
@@ -336,6 +361,7 @@ fun TurnoAccionDialog(
                     }
                 },
                 enabled = formularioValido,
+                shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (accionActual == AccionTurno.CANCELAR) Color(0xFFDC2626) else MaterialTheme.colorScheme.primary
                 )
@@ -370,4 +396,48 @@ fun TurnoAccionDialog(
             }
         }
     )
+
+    if (mostrarConfirmacionEmail) {
+        AlertDialog(
+            onDismissRequest = {
+                mostrarConfirmacionEmail = false
+                onSuccess("Solicitud de $turnoId enviada")
+                onDismiss()
+            },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Mail,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(36.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Confirmación por Correo Electrónico",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "Tu solicitud de ${if (accionActual == AccionTurno.CANCELAR) "cancelación" else "reprogramación"} para el turno #$turnoId ha sido procesada con éxito.\n\nRecibirás la confirmación final en tu correo electrónico registrado y ha sido notificada a lumina.salud.adm@gmail.com.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        mostrarConfirmacionEmail = false
+                        onSuccess("Solicitud de $turnoId procesada")
+                        onDismiss()
+                    },
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Entendido")
+                }
+            }
+        )
+    }
 }

@@ -22,6 +22,20 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import android.app.DatePickerDialog
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import java.time.format.DateTimeFormatter
+import java.util.Calendar
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
@@ -40,6 +54,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -56,13 +71,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.lumina.frontend.data.local.SessionManager
+import com.lumina.frontend.data.local.UserRole
 import com.lumina.frontend.data.remote.dto.HistorialResponseDto
 import com.lumina.frontend.data.remote.dto.MedicamentoResponseDto
 import com.lumina.frontend.data.remote.dto.PacienteResponseDto
 import com.lumina.frontend.data.remote.dto.TurnoResponseDto
 import com.lumina.frontend.ui.viewmodel.PatientDetailTab
 import com.lumina.frontend.ui.viewmodel.PatientDetailViewModel
+import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,21 +91,46 @@ fun PatientDetailScreen(
     viewModel: PatientDetailViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val currentRole = SessionManager.getCurrentRole() ?: UserRole.SUPER_ADMIN
+    var mostrarDialogoEditar by remember { mutableStateOf(false) }
 
     LaunchedEffect(pacienteId) {
         viewModel.cargarDetallePaciente(pacienteId)
     }
 
+    if (mostrarDialogoEditar && uiState.paciente != null) {
+        EditarPacienteDialog(
+            paciente = uiState.paciente!!,
+            onDismiss = { mostrarDialogoEditar = false },
+            onGuardar = { nombre, fecha, diag ->
+                viewModel.actualizarDatosPaciente(pacienteId, nombre, fecha, diag) {
+                    mostrarDialogoEditar = false
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ficha Médica") },
+                title = { Text("Ficha Médica del Paciente") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Volver"
                         )
+                    }
+                },
+                actions = {
+                    if (currentRole == UserRole.SUPER_ADMIN && uiState.paciente != null) {
+                        IconButton(onClick = { mostrarDialogoEditar = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Editar Paciente",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -153,7 +197,8 @@ fun PatientDetailScreen(
                         onSelectTab = { viewModel.selectTab(it) },
                         turnos = uiState.turnos,
                         medicamentos = uiState.medicamentos,
-                        historial = uiState.historial
+                        historial = uiState.historial,
+                        onEditarClick = { mostrarDialogoEditar = true }
                     )
                 }
             }
@@ -168,11 +213,12 @@ private fun PatientDetailContent(
     onSelectTab: (PatientDetailTab) -> Unit,
     turnos: List<TurnoResponseDto>,
     medicamentos: List<MedicamentoResponseDto>,
-    historial: List<HistorialResponseDto>
+    historial: List<HistorialResponseDto>,
+    onEditarClick: () -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        // Cabecera con datos clave del paciente (Criterio de aceptación: foto/iniciales, edad, DNI, médico asignado)
-        PatientHeader(paciente = paciente)
+        // Cabecera con datos clave del paciente y permiso de rol
+        PatientHeader(paciente = paciente, onEditarClick = onEditarClick)
 
         // TabRow de Material 3 para navegar fluidamente entre secciones
         val tabs = PatientDetailTab.values()
@@ -221,7 +267,7 @@ private fun PatientDetailContent(
 }
 
 @Composable
-private fun PatientHeader(paciente: PacienteResponseDto) {
+private fun PatientHeader(paciente: PacienteResponseDto, onEditarClick: () -> Unit = {}) {
     val iniciales = paciente.nombreCompleto
         .split(" ")
         .filter { it.isNotBlank() }
@@ -234,6 +280,8 @@ private fun PatientHeader(paciente: PacienteResponseDto) {
     val dniMock = (30_000_000L + (paciente.idPaciente * 1_234_567L) % 15_000_000L).toString()
     val medicoAsignadoMock = "Dr. Alejandro Gómez"
 
+    val currentRole = SessionManager.getCurrentRole() ?: UserRole.SUPER_ADMIN
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -244,60 +292,98 @@ private fun PatientHeader(paciente: PacienteResponseDto) {
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = iniciales,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = paciente.nombreCompleto,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = "Edad: $edadCalculada",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
-                    )
-                    Text(
-                        text = "DNI: $dniMock",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                        text = iniciales,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontWeight = FontWeight.Bold
                     )
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.width(14.dp))
 
-                Text(
-                    text = "Médico: $medicoAsignadoMock",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = paciente.nombreCompleto,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+
+                    Spacer(modifier = Modifier.height(3.dp))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            text = "Edad: $edadCalculada",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                        )
+                        Text(
+                            text = "DNI: $dniMock",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(3.dp))
+
+                    Text(
+                        text = "Médico: $medicoAsignadoMock",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Badge de Control de Edición Exclusiva para Super Admin
+            Surface(
+                color = if (currentRole == UserRole.SUPER_ADMIN) Color(0xFF7C3AED).copy(alpha = 0.15f) else Color(0xFF0284C7).copy(alpha = 0.15f),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (currentRole == UserRole.SUPER_ADMIN)
+                            "👑 Modo Super Admin: Edición Habilitada"
+                        else
+                            "🔒 Vista de Sólo Lectura (Edición exclusiva para Super Admin)",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (currentRole == UserRole.SUPER_ADMIN) Color(0xFF7C3AED) else Color(0xFF0284C7)
+                    )
+                }
+            }
+
+            if (currentRole == UserRole.SUPER_ADMIN) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Button(
+                    onClick = onEditarClick,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.fillMaxWidth().height(40.dp)
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Editar Información del Paciente", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
@@ -312,8 +398,8 @@ private fun TabGeneralContent(paciente: PacienteResponseDto) {
     ) {
         item {
             DetailItemCard(
-                title = "Diagnóstico / Fase",
-                value = paciente.diagnosticoFase ?: "No especificado",
+                title = "Diagnóstico / Patología",
+                value = paciente.diagnosticoFase ?: "Control clínico general",
                 icon = Icons.Default.Info
             )
         }
@@ -350,36 +436,36 @@ private fun TabTurnosContent(turnos: List<TurnoResponseDto>) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             items(turnos) { turno ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(14.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // Fecha compacta y resumida en lugar del string crudo
                             Text(
-                                text = turno.fechaHora.replace("T", " "),
+                                text = formatFechaCompacta(turno.fechaHora),
                                 style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
                             )
                             StatusBadge(turno.estado ?: "PENDIENTE")
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = turno.motivo ?: "Consulta de rutina",
                             style = MaterialTheme.typography.bodyMedium
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = "Profesional: ${turno.nombreMedico ?: "Asignado"}",
                             style = MaterialTheme.typography.bodySmall,
@@ -400,26 +486,24 @@ private fun TabMedicamentosContent(medicamentos: List<MedicamentoResponseDto>) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             items(medicamentos) { med ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(40.dp)
                                 .clip(CircleShape)
                                 .background(MaterialTheme.colorScheme.secondaryContainer),
                             contentAlignment = Alignment.Center
@@ -427,10 +511,11 @@ private fun TabMedicamentosContent(medicamentos: List<MedicamentoResponseDto>) {
                             Icon(
                                 imageVector = Icons.Default.Favorite,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = med.nombreMedicamento,
@@ -466,18 +551,16 @@ private fun TabHistorialContent(historial: List<HistorialResponseDto>) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             items(historial) { reg ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(14.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -490,13 +573,13 @@ private fun TabHistorialContent(historial: List<HistorialResponseDto>) {
                             )
                             StatusBadge(reg.tipo)
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = reg.descripcion,
                             style = MaterialTheme.typography.bodyMedium
                         )
                         if (reg.profesional != null) {
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(3.dp))
                             Text(
                                 text = "Registrado por: ${reg.profesional}",
                                 style = MaterialTheme.typography.bodySmall,
@@ -520,24 +603,22 @@ private fun DetailItemCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = tint,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(26.dp)
             )
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(14.dp))
             Column {
                 Text(
                     text = title,
@@ -594,6 +675,44 @@ private fun EmptyTabPlaceholder(message: String) {
     }
 }
 
+private fun formatFechaCompacta(raw: String): String {
+    return try {
+        val clean = raw.replace("T", " ")
+        val parts = clean.split(" ")
+        val datePart = parts[0]
+        val timePart = if (parts.size > 1) parts[1].take(5) else "09:00"
+        val date = LocalDate.parse(datePart)
+        val dayOfWeek = when (date.dayOfWeek.value) {
+            1 -> "Lun"
+            2 -> "Mar"
+            3 -> "Mié"
+            4 -> "Jue"
+            5 -> "Vie"
+            6 -> "Sáb"
+            7 -> "Dom"
+            else -> ""
+        }
+        val month = when (date.monthValue) {
+            1 -> "Ene"
+            2 -> "Feb"
+            3 -> "Mar"
+            4 -> "Abr"
+            5 -> "May"
+            6 -> "Jun"
+            7 -> "Jul"
+            8 -> "Ago"
+            9 -> "Sep"
+            10 -> "Oct"
+            11 -> "Nov"
+            12 -> "Dic"
+            else -> ""
+        }
+        "$dayOfWeek ${date.dayOfMonth} $month • $timePart hs"
+    } catch (e: Exception) {
+        raw.replace("T", " ").take(16)
+    }
+}
+
 private fun calcularEdad(fechaNacimiento: String): String {
     return try {
         val anioNac = fechaNacimiento.split("-")[0].toIntOrNull()
@@ -606,4 +725,109 @@ private fun calcularEdad(fechaNacimiento: String): String {
     } catch (e: Exception) {
         "N/D"
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditarPacienteDialog(
+    paciente: PacienteResponseDto,
+    onDismiss: () -> Unit,
+    onGuardar: (nombre: String, fechaNacimiento: String, diagnostico: String) -> Unit
+) {
+    val context = LocalContext.current
+    var nombre by remember { mutableStateOf(paciente.nombreCompleto) }
+    var fechaNacimiento by remember { mutableStateOf(paciente.fechaNacimiento) }
+    var diagnostico by remember { mutableStateOf(paciente.diagnosticoFase ?: "") }
+
+    val calendar = remember { Calendar.getInstance() }
+    val datePickerDialog = remember {
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                val localDate = LocalDate.of(year, month + 1, dayOfMonth)
+                fechaNacimiento = localDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
+            },
+            calendar.get(Calendar.YEAR) - 30,
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).apply {
+            datePicker.maxDate = System.currentTimeMillis()
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Editar Datos del Paciente",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = nombre,
+                    onValueChange = { nombre = it },
+                    label = { Text("Nombre Completo") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { datePickerDialog.show() }
+                ) {
+                    OutlinedTextField(
+                        value = fechaNacimiento,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Fecha de Nacimiento") },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.CalendarMonth,
+                                contentDescription = "Elegir fecha",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.clickable { datePickerDialog.show() }
+                            )
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                OutlinedTextField(
+                    value = diagnostico,
+                    onValueChange = { diagnostico = it },
+                    label = { Text("Diagnóstico Clínico") },
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (nombre.isNotBlank() && fechaNacimiento.isNotBlank()) {
+                        onGuardar(nombre.trim(), fechaNacimiento.trim(), diagnostico.trim())
+                    }
+                },
+                shape = RoundedCornerShape(10.dp),
+                enabled = nombre.isNotBlank() && fechaNacimiento.isNotBlank()
+            ) {
+                Text("Guardar Cambios")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }

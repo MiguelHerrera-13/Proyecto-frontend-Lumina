@@ -12,15 +12,46 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = LuminaDarkPrimary,
+    onPrimary = LuminaOnPrimary,
+    primaryContainer = LuminaDarkSurfaceVariant,
+    onPrimaryContainer = LuminaDarkPrimary,
+    secondary = LuminaDarkSecondary,
+    onSecondary = LuminaOnSecondary,
+    background = LuminaDarkBackground,
+    onBackground = LuminaSurface,
+    surface = LuminaDarkSurface,
+    onSurface = LuminaSurface,
+    surfaceVariant = LuminaDarkSurfaceVariant,
+    onSurfaceVariant = LuminaOutline,
+    outline = LuminaOutlineVariant,
+    error = LuminaError,
+    onError = LuminaOnError
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    primary = LuminaPrimary,
+    onPrimary = LuminaOnPrimary,
+    primaryContainer = LuminaPrimaryContainer,
+    onPrimaryContainer = LuminaOnPrimaryContainer,
+    secondary = LuminaSecondary,
+    onSecondary = LuminaOnSecondary,
+    secondaryContainer = LuminaSecondaryContainer,
+    onSecondaryContainer = LuminaOnSecondaryContainer,
+    tertiary = LuminaTertiary,
+    onTertiary = LuminaOnTertiary,
+    tertiaryContainer = LuminaTertiaryContainer,
+    onTertiaryContainer = LuminaOnTertiaryContainer,
+    background = LuminaBackground,
+    onBackground = LuminaOnBackground,
+    surface = LuminaSurface,
+    onSurface = LuminaOnSurface,
+    surfaceVariant = LuminaSurfaceVariant,
+    onSurfaceVariant = LuminaOnSurfaceVariant,
+    outline = LuminaOutline,
+    outlineVariant = LuminaOutlineVariant,
+    error = LuminaError,
+    onError = LuminaOnError
 )
 
 @Composable

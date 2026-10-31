@@ -1,4 +1,4 @@
-package com.lumina.frontend.ui.screens
+﻿package com.lumina.frontend.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -143,7 +143,7 @@ fun CrearTurnoScreen(
                 )
             )
         },
-        containerColor = Color(0xFFF8FAFC)
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -166,8 +166,8 @@ fun CrearTurnoScreen(
                     val conflictState = uiState as CrearTurnoUiState.ConflictError
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = Color(0xFFFEF2F2),
-                        border = BorderStroke(1.5.dp, Color(0xFFF87171)),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -188,13 +188,13 @@ fun CrearTurnoScreen(
                                     text = "Horario no disponible (Conflicto 409)",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF991B1B)
+                                    color = MaterialTheme.colorScheme.onErrorContainer
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = conflictState.mensaje,
                                     fontSize = 13.sp,
-                                    color = Color(0xFF7F1D1D),
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
                                     lineHeight = 18.sp
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
@@ -202,7 +202,7 @@ fun CrearTurnoScreen(
                                     text = "💡 ${conflictState.sugerencia}",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFFB91C1C)
+                                    color = MaterialTheme.colorScheme.onErrorContainer
                                 )
                             }
                         }
@@ -220,13 +220,13 @@ fun CrearTurnoScreen(
                     val errorState = uiState as CrearTurnoUiState.Error
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFFFFBEB),
-                        border = BorderStroke(1.dp, Color(0xFFFDE68A)),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = "⚠️ ${errorState.mensaje}",
-                            color = Color(0xFF92400E),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
                             fontSize = 13.sp,
                             modifier = Modifier.padding(14.dp)
                         )
@@ -239,7 +239,7 @@ fun CrearTurnoScreen(
             // ========================================================
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -248,7 +248,7 @@ fun CrearTurnoScreen(
                         text = "1. Paciente",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        color = Color(0xFF0F172A)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -285,9 +285,9 @@ fun CrearTurnoScreen(
                                                 fontWeight = FontWeight.SemiBold
                                             )
                                             Text(
-                                                text = "DNI: ${paciente.dni ?: "S/D"} • ID #${paciente.idPaciente}",
+                                                text = paciente.diagnosticoFase ?: "Control clínico general",
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = Color.Gray
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
                                     },
@@ -307,7 +307,7 @@ fun CrearTurnoScreen(
             // ========================================================
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -316,7 +316,7 @@ fun CrearTurnoScreen(
                         text = "2. Profesional Asignado",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        color = Color(0xFF0F172A)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -362,7 +362,7 @@ fun CrearTurnoScreen(
             // ========================================================
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -371,13 +371,13 @@ fun CrearTurnoScreen(
                         text = "3. Fecha del Turno",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        color = Color(0xFF0F172A)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
                     OutlinedCard(
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
@@ -409,7 +409,7 @@ fun CrearTurnoScreen(
                                             .replaceFirstChar { it.uppercase() },
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF0F172A)
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                             }
@@ -429,7 +429,7 @@ fun CrearTurnoScreen(
             // ========================================================
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -438,7 +438,7 @@ fun CrearTurnoScreen(
                         text = "4. Rango Horario",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        color = Color(0xFF0F172A)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(10.dp))
 
@@ -451,7 +451,7 @@ fun CrearTurnoScreen(
                             shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(
                                 1.dp,
-                                if (!formState.isHoraValida) Color(0xFFEF4444) else Color(0xFFCBD5E1)
+                                if (!formState.isHoraValida) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant
                             ),
                             modifier = Modifier
                                 .weight(1f)
@@ -474,7 +474,7 @@ fun CrearTurnoScreen(
                                     text = formState.horaInicio.format(timeFormatter),
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (!formState.isHoraValida) Color(0xFFDC2626) else Color(0xFF0F172A)
+                                    color = if (!formState.isHoraValida) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -484,7 +484,7 @@ fun CrearTurnoScreen(
                             shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(
                                 1.dp,
-                                if (!formState.isHoraValida) Color(0xFFEF4444) else Color(0xFFCBD5E1)
+                                if (!formState.isHoraValida) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant
                             ),
                             modifier = Modifier
                                 .weight(1f)
@@ -507,7 +507,7 @@ fun CrearTurnoScreen(
                                     text = formState.horaFin.format(timeFormatter),
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (!formState.isHoraValida) Color(0xFFDC2626) else Color(0xFF0F172A)
+                                    color = if (!formState.isHoraValida) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -518,8 +518,8 @@ fun CrearTurnoScreen(
                     if (!formState.isHoraValida) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFFEF2F2),
-                            border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -554,7 +554,7 @@ fun CrearTurnoScreen(
             // ========================================================
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -563,7 +563,7 @@ fun CrearTurnoScreen(
                         text = "5. Motivo de la Consulta",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        color = Color(0xFF0F172A)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
@@ -589,8 +589,8 @@ fun CrearTurnoScreen(
                 enabled = formState.isFormularioValido && uiState !is CrearTurnoUiState.Loading,
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF0284C7),
-                    disabledContainerColor = Color(0xFF94A3B8)
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -743,7 +743,7 @@ fun CrearTurnoScreen(
             confirmButton = {
                 Button(
                     onClick = onTurnoCreado,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Text("Finalizar y Volver")
                 }
@@ -794,7 +794,7 @@ private fun TimePickerDialogCustom(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = onConfirm,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
                         Text("Aceptar")
                     }

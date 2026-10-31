@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.65"
+        android:scaleY="0.65"
+        android:translateX="18.9"
+        android:translateY="18.9">
+        <!-- Corazón médico de fondo -->
+        <path
+            android:fillColor="#38BDF8"
+            android:pathData="M54,84 L23.5,53.5 C16.5,46.5 16.5,35.1 23.5,28.1 C30.5,21.1 41.9,21.1 48.9,28.1 L54,33.2 L59.1,28.1 C66.1,21.1 77.5,21.1 84.5,28.1 C91.5,35.1 91.5,46.5 84.5,53.5 Z" />
+        <!-- Cruz blanca médica central -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M50,38 L58,38 L58,48 L68,48 L68,56 L58,56 L58,66 L50,66 L50,56 L40,56 L40,48 L50,48 Z" />
+    </group>
+</vector>
+
