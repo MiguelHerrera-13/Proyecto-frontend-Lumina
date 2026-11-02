@@ -6,6 +6,7 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -13,6 +14,12 @@ interface PacienteApiService {
 
     @POST("api/pacientes")
     suspend fun crearPaciente(
+        @Body paciente: PacienteRequestDto
+    ): Response<PacienteResponseDto>
+
+    @PUT("api/pacientes/{id}")
+    suspend fun actualizarPaciente(
+        @Path("id") id: Long,
         @Body paciente: PacienteRequestDto
     ): Response<PacienteResponseDto>
 

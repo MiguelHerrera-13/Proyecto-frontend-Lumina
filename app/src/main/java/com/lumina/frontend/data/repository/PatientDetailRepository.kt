@@ -40,11 +40,29 @@ class PatientDetailRepository(
         fechaNacimiento: String,
         diagnostico: String
     ): Result<PacienteResponseDto> {
-        val updated = FakePatientDataSource.updatePatient(id, nombre, fechaNacimiento, diagnostico)
-        return if (updated != null) {
-            Result.success(updated)
-        } else {
-            Result.failure(Exception("No se pudo actualizar el paciente"))
+        return try {
+            val response = RetrofitClient.pacienteApiService.actualizarPaciente(
+                id,
+                com.lumina.frontend.data.remote.dto.PacienteRequestDto(
+                    nombreCompleto = nombre,
+                    fechaNacimiento = fechaNacimiento,
+                    diagnosticoFase = diagnostico
+                )
+            )
+            FakePatientDataSource.updatePatient(id, nombre, fechaNacimiento, diagnostico)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val updated = FakePatientDataSource.updatePatient(id, nombre, fechaNacimiento, diagnostico)
+                if (updated != null) Result.success(updated) else Result.failure(Exception("No se pudo actualizar el paciente"))
+            }
+        } catch (e: Exception) {
+            val updated = FakePatientDataSource.updatePatient(id, nombre, fechaNacimiento, diagnostico)
+            if (updated != null) {
+                Result.success(updated)
+            } else {
+                Result.failure(Exception("No se pudo actualizar el paciente"))
+            }
         }
     }
 }

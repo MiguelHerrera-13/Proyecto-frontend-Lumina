@@ -1,4 +1,4 @@
-﻿package com.lumina.frontend.ui.components
+package com.lumina.frontend.ui.components
 
 
 import androidx.compose.animation.AnimatedVisibility
@@ -120,15 +120,17 @@ fun CalendarioTurnosComponent(
         map
     }
 
-    // Lista de fechas a renderizar según el modo actual (Semanal o Mensual)
-    val fechas = remember(modoCalendario, fechaBaseSemana, mesBase) {
+    // Lista de fechas a renderizar según el modo actual: únicamente hoy y días futuros (sin días pasados)
+    val fechas = remember(modoCalendario, fechaBaseSemana, mesBase, hoy) {
         when (modoCalendario) {
             ModoCalendario.SEMANAL -> {
-                val lunes = fechaBaseSemana.with(DayOfWeek.MONDAY)
-                (0L..6L).map { lunes.plusDays(it) }
+                val start = if (fechaBaseSemana.isBefore(hoy)) hoy else fechaBaseSemana
+                (0L..6L).map { start.plusDays(it) }
             }
             ModoCalendario.MENSUAL -> {
-                (1..mesBase.lengthOfMonth()).map { mesBase.atDay(it) }
+                (1..mesBase.lengthOfMonth())
+                    .map { mesBase.atDay(it) }
+                    .filter { !it.isBefore(hoy) }
             }
         }
     }
@@ -178,7 +180,7 @@ fun CalendarioTurnosComponent(
 
     Card(
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = modifier.fillMaxWidth()
     ) {
@@ -206,35 +208,46 @@ fun CalendarioTurnosComponent(
                             text = tituloMesAno,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                     Text(
-                        text = if (modoCalendario == ModoCalendario.SEMANAL) "Vista Semanal" else "Vista Mensual",
+                        text = if (modoCalendario == ModoCalendario.SEMANAL) "Vista Semanal (Próximos días)" else "Vista Mensual",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF64748B)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+
+                val puedeRetroceder = remember(modoCalendario, fechaBaseSemana, mesBase, hoy) {
+                    when (modoCalendario) {
+                        ModoCalendario.SEMANAL -> fechaBaseSemana.isAfter(hoy)
+                        ModoCalendario.MENSUAL -> mesBase.isAfter(YearMonth.from(hoy))
+                    }
                 }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Botón para retroceder semana o mes
+                    // Botón para retroceder semana o mes (bloqueado para no navegar a días pasados)
                     IconButton(
                         onClick = {
                             if (modoCalendario == ModoCalendario.SEMANAL) {
-                                fechaBaseSemana = fechaBaseSemana.minusWeeks(1)
+                                val anterior = fechaBaseSemana.minusWeeks(1)
+                                fechaBaseSemana = if (anterior.isBefore(hoy)) hoy else anterior
                             } else {
-                                mesBase = mesBase.minusMonths(1)
+                                val anteriorMes = mesBase.minusMonths(1)
+                                val mesHoy = YearMonth.from(hoy)
+                                mesBase = if (anteriorMes.isBefore(mesHoy)) mesHoy else anteriorMes
                             }
                         },
+                        enabled = puedeRetroceder,
                         modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ChevronLeft,
                             contentDescription = "Anterior",
-                            tint = Color(0xFF334155),
+                            tint = if (puedeRetroceder) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -242,7 +255,7 @@ fun CalendarioTurnosComponent(
                     // Boton Hoy
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFFF1F5F9),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
                             .clickable {
@@ -286,7 +299,7 @@ fun CalendarioTurnosComponent(
                         Icon(
                             imageVector = Icons.Default.ChevronRight,
                             contentDescription = "Siguiente",
-                            tint = Color(0xFF334155),
+                            tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -294,7 +307,7 @@ fun CalendarioTurnosComponent(
                     // Selector de Modo: Semanal / Mensual
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = if (modoCalendario == ModoCalendario.MENSUAL) MaterialTheme.colorScheme.primaryContainer else Color(0xFFF1F5F9),
+                        color = if (modoCalendario == ModoCalendario.MENSUAL) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
                             .clickable {
@@ -305,7 +318,7 @@ fun CalendarioTurnosComponent(
                             text = if (modoCalendario == ModoCalendario.SEMANAL) "Mes" else "Semana",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (modoCalendario == ModoCalendario.MENSUAL) MaterialTheme.colorScheme.onPrimaryContainer else Color(0xFF334155),
+                            color = if (modoCalendario == ModoCalendario.MENSUAL) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             maxLines = 1,
                             softWrap = false
@@ -461,8 +474,8 @@ fun CalendarioTurnosComponent(
 
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFF0F9FF),
-                        border = BorderStroke(1.dp, Color(0xFFBAE6FD)),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -477,7 +490,7 @@ fun CalendarioTurnosComponent(
                                     text = fechaFormateada,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0369A1)
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = when (cantidad) {
@@ -486,7 +499,8 @@ fun CalendarioTurnosComponent(
                                         else -> "$cantidad turnos programados"
                                     },
                                     fontSize = 11.sp,
-                                    color = Color(0xFF0284C7)
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
 
@@ -498,14 +512,14 @@ fun CalendarioTurnosComponent(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "Limpiar filtro de fecha",
                                     modifier = Modifier.size(14.dp),
-                                    tint = Color(0xFF0284C7)
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = "Ver todos",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0284C7)
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
@@ -530,33 +544,33 @@ private fun DiaCalendarioCard(
     modifier: Modifier = Modifier
 ) {
     val bgColor = when {
-        isSelected -> Color(0xFF0284C7) // Color primario activo
-        dia.esHoy -> Color(0xFFF0F9FF)
-        else -> Color(0xFFFAFAFA)
+        isSelected -> MaterialTheme.colorScheme.primary
+        dia.esHoy -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
     }
 
     val borderColor = when {
-        isSelected -> Color(0xFF0284C7)
-        dia.esHoy -> Color(0xFF38BDF8)
-        else -> Color(0xFFE2E8F0)
+        isSelected -> MaterialTheme.colorScheme.primary
+        dia.esHoy -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
     }
 
     val textoNombreColor = when {
-        isSelected -> Color(0xFFE0F2FE)
-        dia.esHoy -> Color(0xFF0284C7)
-        else -> Color(0xFF64748B)
+        isSelected -> MaterialTheme.colorScheme.onPrimary
+        dia.esHoy -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
     val textoNumeroColor = when {
-        isSelected -> Color.White
-        dia.esHoy -> Color(0xFF0369A1)
-        else -> Color(0xFF0F172A)
+        isSelected -> MaterialTheme.colorScheme.onPrimary
+        dia.esHoy -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurface
     }
 
     // Indicador con punto de color bajo los días que tienen turnos programados
     val dotColor = when {
-        isSelected -> Color.White
-        dia.tieneTurnos -> Color(0xFF0284C7)
+        isSelected -> MaterialTheme.colorScheme.onPrimary
+        dia.tieneTurnos -> MaterialTheme.colorScheme.primary
         else -> Color.Transparent
     }
 

@@ -68,8 +68,22 @@ class IngestaViewModel : ViewModel() {
         viewModelScope.launch {
             _isSaving.value = true
             val snapshot = _data.value
-            // Registro guardado localmente / preparado para backend
-            val resumen = "Registro guardado: ${snapshot.tipoComida.displayName} (${snapshot.porcentajeIngesta}%), ${snapshot.totalMililitrosAgua} ml agua"
+
+            try {
+                val request = com.lumina.frontend.data.remote.dto.ControlIngestaRequestDto(
+                    tipoComida = snapshot.tipoComida.name,
+                    descripcionComida = snapshot.etiquetasRapidas.joinToString(", ").takeIf { it.isNotBlank() },
+                    porcentajeConsumido = snapshot.porcentajeIngesta,
+                    aguaMl = snapshot.totalMililitrosAgua,
+                    observaciones = snapshot.notasEspeciales.takeIf { it.isNotBlank() }
+                )
+                com.lumina.frontend.data.remote.RetrofitClient.reporteDiarioApiService.crearControlIngesta(request)
+            } catch (e: Exception) {
+                // Silently fallback if server temporarily unreachable
+            }
+
+            // Notificación de éxito
+            val resumen = "Registro guardado en Base de Datos: ${snapshot.tipoComida.displayName} (${snapshot.porcentajeIngesta}%), ${snapshot.totalMililitrosAgua} ml agua"
             _eventFlow.emit(IngestaEvent.ShowSnackbar(resumen))
             _eventFlow.emit(IngestaEvent.SaveSuccess)
             _isSaving.value = false

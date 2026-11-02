@@ -8,34 +8,34 @@ enum class ReporteDiarioPaso(val numero: Int, val titulo: String, val descripcio
 }
 
 data class ReporteGeneralData(
-    val temperatura: String = "36.5",
-    val presionArterial: String = "120/80",
-    val estadoAnimo: String = "Tranquilo",
-    val nivelMovilidad: String = "Autónomo",
+    val temperatura: String = "",
+    val presionArterial: String = "",
+    val estadoAnimo: String = "",
+    val nivelMovilidad: String = "",
     val observacionesGenerales: String = ""
 )
 
 data class ReporteIngestaData(
-    val desayunoCompletado: Boolean = true,
-    val almuerzoCompletado: Boolean = true,
+    val desayunoCompletado: Boolean = false,
+    val almuerzoCompletado: Boolean = false,
     val meriendaCompletada: Boolean = false,
     val cenaCompletada: Boolean = false,
-    val aguaMlConsumida: Int = 1200,
-    val apetitoNivel: String = "Normal",
+    val aguaMlConsumida: Int = 0,
+    val apetitoNivel: String = "",
     val observacionesIngesta: String = ""
 )
 
 data class ReporteHigieneData(
-    val banoRealizado: Boolean = true,
-    val cambioRopa: Boolean = true,
-    val cambioPanalesVeces: Int = 2,
-    val cuidadoPiel: String = "Hidratación aplicada",
+    val banoRealizado: Boolean = false,
+    val cambioRopa: Boolean = false,
+    val cambioPanalesVeces: Int = 0,
+    val cuidadoPiel: String = "",
     val observacionesHigiene: String = ""
 )
 
 data class ReporteIncidentesData(
     val huboIncidentes: Boolean = false,
-    val tipoIncidente: String = "Ninguno",
+    val tipoIncidente: String = "",
     val descripcionIncidente: String = "",
     val medidasTomadas: String = ""
 )
@@ -49,4 +49,3 @@ data class ReporteDiarioDraft(
     val incidentes: ReporteIncidentesData = ReporteIncidentesData(),
     val ultimoGuardadoTimestamp: Long = System.currentTimeMillis()
 )
-

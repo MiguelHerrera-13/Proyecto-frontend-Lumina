@@ -9,7 +9,7 @@ enum class TipoComida(val displayName: String) {
 
 data class IngestaHidratacionData(
     val tipoComida: TipoComida = TipoComida.ALMUERZO,
-    val porcentajeIngesta: Int = 100, // 0, 25, 50, 75, 100
+    val porcentajeIngesta: Int = 0, // 0, 25, 50, 75, 100
     val vasosAgua: Int = 0,
     val notasEspeciales: String = "",
     val etiquetasRapidas: Set<String> = emptySet()

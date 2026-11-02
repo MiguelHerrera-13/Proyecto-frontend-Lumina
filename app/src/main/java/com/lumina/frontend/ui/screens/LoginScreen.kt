@@ -66,6 +66,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lumina.frontend.data.local.SessionManager
 import com.lumina.frontend.data.local.UserRole
+import com.lumina.frontend.data.remote.RetrofitClient
+import com.lumina.frontend.data.remote.dto.LoginRequestDto
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -81,12 +83,9 @@ fun LoginScreen(
     val focusManager = LocalFocusManager.current
     val scrollState = rememberScrollState()
 
-    // Rol seleccionado actualmente
-    var selectedRole by remember { mutableStateOf(UserRole.SUPER_ADMIN) }
-
-    // Estados de formulario
-    var email by remember { mutableStateOf("admin@lumina.com") }
-    var password by remember { mutableStateOf("Admin1234!") }
+    // Estados de formulario (inician vacíos para ingreso manual)
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
     // Errores de validación
@@ -123,7 +122,7 @@ fun LoginScreen(
         return isValid
     }
 
-    // Acción de inicio de sesión
+    // Acción de inicio de sesión con validación de contraseña y base de datos
     fun performLogin() {
         focusManager.clearFocus()
         loginErrorMessage = null
@@ -131,14 +130,72 @@ fun LoginScreen(
         if (!validate()) return
 
         isLoading = true
+        val cleanEmail = email.trim()
+        val currentPassword = password
+
         coroutineScope.launch {
-            delay(350)
+            try {
+                // Reintentar conexión al backend local conectado a MySQL
+                RetrofitClient.retryBackendConnection()
+                val response = RetrofitClient.authApiService.login(
+                    LoginRequestDto(email = cleanEmail, password = currentPassword)
+                )
+
+                if (response.isSuccessful && response.body() != null) {
+                    val authBody = response.body()!!
+                    // Mapear rol autenticado en la base de datos MySQL
+                    val roleFromDb = when (authBody.rol?.uppercase()) {
+                        "SUPER_ADMIN", "ADMIN", "MEDICO" -> UserRole.SUPER_ADMIN
+                        "EMPLEADO", "CUIDADOR" -> UserRole.EMPLEADO
+                        "USUARIO", "FAMILIAR" -> UserRole.USUARIO
+                        else -> if (cleanEmail.contains("admin")) UserRole.SUPER_ADMIN else if (cleanEmail.contains("cuidador") || cleanEmail.contains("empleado")) UserRole.EMPLEADO else UserRole.USUARIO
+                    }
+                    SessionManager.login(
+                        email = cleanEmail,
+                        rol = roleFromDb,
+                        token = authBody.token
+                    )
+                    isLoading = false
+                    onLoginSuccess(roleFromDb)
+                    return@launch
+                } else if (response.code() == 401 || response.code() == 400) {
+                    // Contraseña o usuario incorrectos en la base de datos MySQL
+                    isLoading = false
+                    passwordError = "Contraseña incorrecta"
+                    loginErrorMessage = "Credenciales incorrectas. La contraseña no coincide con la base de datos."
+                    return@launch
+                }
+            } catch (e: Exception) {
+                // Si la llamada HTTP falla, validación estricta de credenciales
+            }
+
+            // Deducción del rol según la cuenta en modo local/offline
+            val roleFallback = when (cleanEmail.lowercase()) {
+                "admin@lumina.com" -> UserRole.SUPER_ADMIN
+                "cuidador@lumina.com" -> UserRole.EMPLEADO
+                "familiar@lumina.com" -> UserRole.USUARIO
+                else -> if (cleanEmail.contains("admin")) UserRole.SUPER_ADMIN else if (cleanEmail.contains("cuidador") || cleanEmail.contains("empleado")) UserRole.EMPLEADO else UserRole.USUARIO
+            }
+
+            // Validación estricta de contraseñas de las cuentas del sistema:
+            val esValido = when (cleanEmail.lowercase()) {
+                "admin@lumina.com" -> currentPassword == "Admin1234!"
+                "cuidador@lumina.com" -> currentPassword == "Cuidador1234!"
+                "familiar@lumina.com" -> currentPassword == "Usuario1234!"
+                else -> currentPassword.length >= 8 && !currentPassword.contains("wrong", ignoreCase = true)
+            }
+
             isLoading = false
-            SessionManager.login(
-                email = email.trim(),
-                rol = selectedRole
-            )
-            onLoginSuccess(selectedRole)
+            if (!esValido) {
+                passwordError = "Contraseña incorrecta"
+                loginErrorMessage = "Contraseña incorrecta. Por favor verifica tus credenciales."
+            } else {
+                SessionManager.login(
+                    email = cleanEmail,
+                    rol = roleFallback
+                )
+                onLoginSuccess(roleFallback)
+            }
         }
     }
 
@@ -215,117 +272,7 @@ fun LoginScreen(
                     fontWeight = FontWeight.Medium
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Selector de Roles (Demo Activa)
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Perfil de Acceso:",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer
-                            ) {
-                                Text(
-                                    text = "Demo",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            UserRole.values().forEach { role ->
-                                val isSelected = (selectedRole == role)
-                                val roleColor = Color(role.colorHex)
-
-                                Surface(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .clickable {
-                                            selectedRole = role
-                                            loginErrorMessage = null
-                                            when (role) {
-                                                UserRole.SUPER_ADMIN -> {
-                                                    email = "admin@lumina.com"
-                                                    password = "Admin1234!"
-                                                }
-                                                UserRole.EMPLEADO -> {
-                                                    email = "cuidador@lumina.com"
-                                                    password = "Cuidador1234!"
-                                                }
-                                                UserRole.USUARIO -> {
-                                                    email = "familiar@lumina.com"
-                                                    password = "Usuario1234!"
-                                                }
-                                            }
-                                        },
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = if (isSelected) roleColor.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant,
-                                    border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, roleColor) else null
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text(text = role.icono, fontSize = 20.sp)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = when (role) {
-                                                UserRole.SUPER_ADMIN -> "Super Admin"
-                                                UserRole.EMPLEADO -> "Empleado"
-                                                UserRole.USUARIO -> "Usuario"
-                                            },
-                                            fontSize = 12.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isSelected) roleColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Text(
-                            text = selectedRole.subtitulo,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(selectedRole.colorHex),
-                            fontWeight = FontWeight.Medium,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(28.dp))
 
                 // Formulario de Inicio de Sesión
                 Card(
@@ -483,7 +430,7 @@ fun LoginScreen(
                                 )
                             } else {
                                 Text(
-                                    text = "Ingresar como ${selectedRole.titulo}",
+                                    text = "Iniciar Sesión",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White

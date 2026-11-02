@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.sp
 import com.lumina.frontend.data.local.SessionManager
 import com.lumina.frontend.data.local.UserRole
 import com.lumina.frontend.data.remote.dto.TurnoResponseDto
+import com.lumina.frontend.ui.components.extraerFechaIso
 import com.lumina.frontend.util.CalendarExportHelper
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -91,10 +92,16 @@ fun TurnoDetailScreen(
     val isCompletado = estadoTurno == "COMPLETADO"
     val isCancelado = estadoTurno == "CANCELADO"
 
-    val hoyStr = remember { LocalDate.now().toString() }
-    val estaEnHorario = remember(turno.fechaHora) {
-        val fecha = turno.fechaHora
-        fecha.contains(hoyStr) || fecha.startsWith("2026-10-28") || isPendiente
+    val hoy = remember { LocalDate.now() }
+    val estaEnHorario = remember(turno.fechaHora, hoy) {
+        val iso = extraerFechaIso(turno.fechaHora)
+        if (iso != null) {
+            try {
+                !LocalDate.parse(iso).isBefore(hoy)
+            } catch (_: Exception) {
+                true
+            }
+        } else true
     }
 
     val esRolClinicoAutorizado = currentRole == UserRole.SUPER_ADMIN || currentRole == UserRole.EMPLEADO

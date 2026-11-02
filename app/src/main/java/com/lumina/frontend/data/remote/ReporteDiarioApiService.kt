@@ -1,5 +1,6 @@
 package com.lumina.frontend.data.remote
 
+import com.lumina.frontend.data.remote.dto.ControlIngestaRequestDto
 import com.lumina.frontend.data.remote.dto.ReporteDiarioRequestDto
 import com.lumina.frontend.data.remote.dto.ReporteDiarioResponseDto
 import retrofit2.Response
@@ -14,6 +15,11 @@ interface ReporteDiarioApiService {
     suspend fun crearReporteDiario(
         @Body request: ReporteDiarioRequestDto
     ): Response<ReporteDiarioResponseDto>
+
+    @POST("api/reportes-diarios/ingestas")
+    suspend fun crearControlIngesta(
+        @Body request: ControlIngestaRequestDto
+    ): Response<Any>
 
     @GET("api/reportes-diarios/turno/{idTurno}")
     suspend fun obtenerReportesPorTurno(
