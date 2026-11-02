@@ -8,6 +8,8 @@ import com.lumina.frontend.data.remote.dto.CancelarTurnoRequestDto
 import com.lumina.frontend.data.remote.dto.CrearTurnoRequestDto
 import com.lumina.frontend.data.remote.dto.ReprogramarTurnoRequestDto
 import com.lumina.frontend.data.remote.dto.TurnoResponseDto
+import com.lumina.frontend.ui.components.extraerFechaIso
+import java.time.LocalDate
 
 /**
  * Excepción específica para representar un error HTTP 409 Conflict (Colisión o solapamiento de agenda).
@@ -22,24 +24,42 @@ class TurnoRepository {
 
     private fun filtrarPorRol(lista: List<TurnoResponseDto>): List<TurnoResponseDto> {
         val role = SessionManager.getCurrentRole()
+        val hoy = LocalDate.now()
+
+        // Filtrar turnos pasados: únicamente turnos de hoy en adelante (no días para atrás)
+        val listaValida = lista.filter { turno ->
+            val fechaIso = extraerFechaIso(turno.fechaHora)
+            if (fechaIso != null) {
+                try {
+                    val fecha = LocalDate.parse(fechaIso)
+                    !fecha.isBefore(hoy)
+                } catch (_: Exception) {
+                    true
+                }
+            } else {
+                true
+            }
+        }
+
         return when (role) {
             UserRole.EMPLEADO -> {
-                // Empleado solo ve turnos de sus pacientes asignados (Roberto Gómez y Jorge Méndez) o con personal asistencial
-                lista.filter { turno ->
-                    turno.nombrePaciente?.contains("Roberto Gómez", ignoreCase = true) == true ||
-                    turno.nombrePaciente?.contains("Jorge Méndez", ignoreCase = true) == true ||
+                // Empleado / Médico: solo los turnos que tiene ese médico/empleado para sus pacientes asignados (Roberto Gómez y Jorge Méndez)
+                listaValida.filter { turno ->
+                    turno.nombreMedico?.contains("Salomón", ignoreCase = true) == true ||
                     turno.nombreMedico?.contains("Cuidador", ignoreCase = true) == true ||
-                    turno.nombreMedico?.contains("Enf", ignoreCase = true) == true
+                    turno.nombreMedico?.contains("Enf", ignoreCase = true) == true ||
+                    turno.nombrePaciente?.contains("Roberto Gómez", ignoreCase = true) == true ||
+                    turno.nombrePaciente?.contains("Jorge Méndez", ignoreCase = true) == true
                 }
             }
             UserRole.USUARIO -> {
                 // Familiar / Usuario solo ve turnos de su ser querido: Roberto Gómez
-                lista.filter { turno ->
+                listaValida.filter { turno ->
                     turno.nombrePaciente?.contains("Roberto Gómez", ignoreCase = true) == true ||
                     (turno.nombrePaciente.isNullOrBlank() && (turno.id == 101L || turno.id == 102L || turno.id == 104L || turno.id == 107L))
                 }
             }
-            else -> lista // SUPER_ADMIN ve todos los turnos de la clínica
+            else -> listaValida // SUPER_ADMIN ve todos los turnos de la clínica
         }
     }
 

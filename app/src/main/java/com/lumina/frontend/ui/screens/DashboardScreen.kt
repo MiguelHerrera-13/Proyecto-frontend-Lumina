@@ -21,7 +21,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
@@ -69,6 +71,7 @@ import com.lumina.frontend.ui.components.CalendarioTurnosComponent
 import com.lumina.frontend.ui.components.TurnoAccionDialog
 import com.lumina.frontend.ui.components.TurnoDetailDialog
 import com.lumina.frontend.ui.components.TurnoFiltrosBottomSheet
+import com.lumina.frontend.ui.components.extraerFechaIso
 import com.lumina.frontend.ui.viewmodel.DashboardUiState
 import com.lumina.frontend.ui.viewmodel.DashboardViewModel
 import com.lumina.frontend.util.CalendarExportHelper
@@ -154,13 +157,17 @@ fun DashboardScreen(
                                 }
                             }
                         ) {
-                            Text(text = "🌪️", fontSize = 20.sp)
+                            Icon(
+                                imageVector = Icons.Default.FilterList,
+                                contentDescription = "Filtros",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    titleContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },
@@ -169,11 +176,11 @@ fun DashboardScreen(
                 onClick = onNavigateToCrearTurno,
                 icon = { Icon(Icons.Default.Add, contentDescription = "Nuevo Turno") },
                 text = { Text("Nuevo Turno", fontWeight = FontWeight.Bold) },
-                containerColor = Color(0xFF0284C7),
-                contentColor = Color.White
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             )
         },
-        containerColor = Color(0xFFF1F5F9)
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -293,7 +300,7 @@ fun DashboardScreen(
                         if (turnos.isEmpty()) {
                             Card(
                                 shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -305,7 +312,12 @@ fun DashboardScreen(
                                         .padding(28.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Text(text = "🔍", fontSize = 42.sp)
+                                    Icon(
+                                        imageVector = Icons.Default.CalendarMonth,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(46.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
                                     Spacer(modifier = Modifier.height(12.dp))
                                     val tieneFiltroDia = !fechaCalendario.isNullOrBlank()
                                     Text(
@@ -316,6 +328,7 @@ fun DashboardScreen(
                                         },
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         textAlign = TextAlign.Center
                                     )
                                     Spacer(modifier = Modifier.height(6.dp))
@@ -326,7 +339,7 @@ fun DashboardScreen(
                                             else -> "Cuando agendes nuevos turnos, aparecerán en este panel."
                                         },
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = Color.Gray,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         textAlign = TextAlign.Center
                                     )
                                     if (tieneFiltroDia || filtros.tieneFiltrosActivos) {
@@ -344,7 +357,7 @@ fun DashboardScreen(
                                         Spacer(modifier = Modifier.height(18.dp))
                                         Button(
                                             onClick = onNavigateToCrearTurno,
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                             shape = RoundedCornerShape(12.dp)
                                         ) {
                                             Text("Agendar un nuevo turno", fontWeight = FontWeight.Bold)
@@ -500,49 +513,59 @@ fun TurnoCard(
     val isCancelado = turno.estado == "CANCELADO"
 
     Card(
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.95f)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onVerDetalle() }
     ) {
         Column(
-            modifier = Modifier.padding(20.dp)
+            modifier = Modifier.padding(18.dp)
         ) {
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = turno.nombreMedico ?: "Dr. Asignado",
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 19.sp,
-                    color = Color(0xFF111827)
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = turno.nombreMedico ?: "Dr. Asignado",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (!turno.nombrePaciente.isNullOrBlank()) {
+                        Text(
+                            text = "Paciente: ${turno.nombrePaciente}${if (!turno.habitacion.isNullOrBlank()) " (${turno.habitacion})" else ""}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
                 // Badge de Estado con Color Distintivo
                 val badgeBg = when (turno.estado) {
-                    "CANCELADO" -> Color(0xFFFEE2E2)
-                    "REPROGRAMADO" -> Color(0xFFE0E7FF)
-                    "COMPLETADO" -> Color(0xFFD1FAE5)
-                    "EN_CURSO" -> Color(0xFFDBEAFE)
-                    else -> Color(0xFFFEF3C7)
+                    "CANCELADO" -> MaterialTheme.colorScheme.errorContainer
+                    "REPROGRAMADO" -> MaterialTheme.colorScheme.secondaryContainer
+                    "COMPLETADO" -> Color(0xFF10B981).copy(alpha = 0.2f)
+                    "EN_CURSO" -> MaterialTheme.colorScheme.primaryContainer
+                    else -> MaterialTheme.colorScheme.tertiaryContainer
                 }
                 val badgeText = when (turno.estado) {
-                    "CANCELADO" -> Color(0xFF991B1B)
-                    "REPROGRAMADO" -> Color(0xFF3730A3)
-                    "COMPLETADO" -> Color(0xFF065F46)
-                    "EN_CURSO" -> Color(0xFF1D4ED8)
-                    else -> Color(0xFF92400E)
+                    "CANCELADO" -> MaterialTheme.colorScheme.onErrorContainer
+                    "REPROGRAMADO" -> MaterialTheme.colorScheme.onSecondaryContainer
+                    "COMPLETADO" -> Color(0xFF10B981)
+                    "EN_CURSO" -> MaterialTheme.colorScheme.onPrimaryContainer
+                    else -> MaterialTheme.colorScheme.onTertiaryContainer
                 }
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(badgeBg)
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Text(
                         text = turno.estado ?: "PROGRAMADO",
@@ -553,24 +576,30 @@ fun TurnoCard(
                 }
             }
             
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             
+            val horarioDisplay = when {
+                !turno.horaInicio.isNullOrBlank() && !turno.horaFin.isNullOrBlank() ->
+                    "${extraerFechaIso(turno.fechaHora) ?: turno.fechaHora} • ${turno.horaInicio} - ${turno.horaFin} hs"
+                else -> turno.fechaHora
+            }
             Text(
-                text = "📅 ${turno.fechaHora}",
-                color = Color(0xFF374151),
-                fontWeight = FontWeight.Medium
+                text = "📅 $horarioDisplay",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium,
+                fontSize = 14.sp
             )
             
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             
             Text(
                 text = "Motivo: ${turno.motivo ?: "No especificado"}",
-                color = Color.Gray,
-                fontSize = 14.sp
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                fontSize = 13.sp
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-            Divider(color = Color(0xFFF1F5F9))
+            Spacer(modifier = Modifier.height(14.dp))
+            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             Spacer(modifier = Modifier.height(10.dp))
 
             // Fila de acciones principales
@@ -581,18 +610,23 @@ fun TurnoCard(
             ) {
                 Button(
                     onClick = onExportarCalendario,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF0284C7)
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     ),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(text = "🗓️", fontSize = 13.sp)
+                    Icon(
+                        imageVector = Icons.Default.CalendarMonth,
+                        contentDescription = null,
+                        modifier = Modifier.size(15.dp)
+                    )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "A mi calendario",
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
 
@@ -600,7 +634,7 @@ fun TurnoCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         TextButton(
                             onClick = onCancelar,
-                            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFDC2626)),
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                             contentPadding = PaddingValues(horizontal = 8.dp)
                         ) {
                             Text("Cancelar", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
@@ -610,7 +644,7 @@ fun TurnoCard(
 
                         OutlinedButton(
                             onClick = onReprogramar,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             Text("Reprogramar", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)

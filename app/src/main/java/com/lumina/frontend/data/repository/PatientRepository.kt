@@ -57,7 +57,13 @@ class PatientRepository(
             val response = apiService.crearPaciente(paciente)
 
             if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
+                val guardado = response.body()!!
+                FakePatientDataSource.addPatient(
+                    nombreCompleto = guardado.nombreCompleto,
+                    fechaNacimiento = guardado.fechaNacimiento,
+                    diagnosticoFase = guardado.diagnosticoFase ?: "Control clínico general"
+                )
+                Result.success(guardado)
             } else {
                 val localPatient = FakePatientDataSource.addPatient(
                     nombreCompleto = paciente.nombreCompleto,
@@ -82,11 +88,29 @@ class PatientRepository(
         fechaNacimiento: String,
         diagnosticoFase: String
     ): Result<PacienteResponseDto> {
-        val updated = FakePatientDataSource.updatePatient(id, nombreCompleto, fechaNacimiento, diagnosticoFase)
-        return if (updated != null) {
-            Result.success(updated)
-        } else {
-            Result.failure(Exception("No se encontró el paciente para actualizar"))
+        return try {
+            val response = apiService.actualizarPaciente(
+                id,
+                PacienteRequestDto(
+                    nombreCompleto = nombreCompleto,
+                    fechaNacimiento = fechaNacimiento,
+                    diagnosticoFase = diagnosticoFase
+                )
+            )
+            FakePatientDataSource.updatePatient(id, nombreCompleto, fechaNacimiento, diagnosticoFase)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val updated = FakePatientDataSource.updatePatient(id, nombreCompleto, fechaNacimiento, diagnosticoFase)
+                if (updated != null) Result.success(updated) else Result.failure(Exception("No se encontró el paciente para actualizar"))
+            }
+        } catch (e: Exception) {
+            val updated = FakePatientDataSource.updatePatient(id, nombreCompleto, fechaNacimiento, diagnosticoFase)
+            if (updated != null) {
+                Result.success(updated)
+            } else {
+                Result.failure(Exception("No se encontró el paciente para actualizar"))
+            }
         }
     }
 

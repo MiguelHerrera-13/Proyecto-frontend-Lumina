@@ -64,6 +64,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lumina.frontend.data.local.SessionManager
 import com.lumina.frontend.data.local.UserRole
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -489,8 +491,20 @@ private fun SuperAdminSection(
     }
 }
 
+// Modelo representativo de turnos de atención individual (1 hora a 1.5 horas máximo)
+private data class TurnoAtencionEmpleado(
+    val id: Long,
+    val horaInicio: LocalTime,
+    val horaFin: LocalTime,
+    val paciente: String,
+    val habitacion: String,
+    val tarea: String,
+    val duracionMinutos: Int,
+    val esManana: Boolean = false
+)
+
 // =======================================================================
-// SECCIÓN 2: VISTA DE EMPLEADO (TURNOS DESDE HOY EN ADELANTE)
+// SECCIÓN 2: VISTA DE EMPLEADO (HORARIOS DE 1H A 1.5H CON PASE AUTOMÁTICO)
 // =======================================================================
 @Composable
 private fun EmpleadoSection(
@@ -499,11 +513,100 @@ private fun EmpleadoSection(
     onNavigateToIngesta: () -> Unit,
     onNavigateToCrearReporte: () -> Unit
 ) {
+    // Cronograma asistencial de turnos (1h a 1.5h por paciente)
+    val turnosEmpleado = remember {
+        listOf(
+            TurnoAtencionEmpleado(
+                id = 1L,
+                horaInicio = LocalTime.of(8, 30),
+                horaFin = LocalTime.of(9, 30),
+                paciente = "Roberto Gómez",
+                habitacion = "Hab. 204",
+                tarea = "Control de medicación matutina y signos vitales",
+                duracionMinutos = 60
+            ),
+            TurnoAtencionEmpleado(
+                id = 2L,
+                horaInicio = LocalTime.of(10, 0),
+                horaFin = LocalTime.of(11, 30),
+                paciente = "Jorge Méndez",
+                habitacion = "Hab. 108",
+                tarea = "Movilidad asistida y estimulación motora",
+                duracionMinutos = 90
+            ),
+            TurnoAtencionEmpleado(
+                id = 3L,
+                horaInicio = LocalTime.of(12, 0),
+                horaFin = LocalTime.of(13, 0),
+                paciente = "Roberto Gómez",
+                habitacion = "Hab. 204",
+                tarea = "Asistencia en almuerzo y registro de ingesta",
+                duracionMinutos = 60
+            ),
+            TurnoAtencionEmpleado(
+                id = 4L,
+                horaInicio = LocalTime.of(14, 0),
+                horaFin = LocalTime.of(15, 30),
+                paciente = "Jorge Méndez",
+                habitacion = "Hab. 108",
+                tarea = "Terapia neurocognitiva y descanso",
+                duracionMinutos = 90
+            ),
+            TurnoAtencionEmpleado(
+                id = 5L,
+                horaInicio = LocalTime.of(16, 0),
+                horaFin = LocalTime.of(17, 0),
+                paciente = "Roberto Gómez",
+                habitacion = "Hab. 204",
+                tarea = "Merienda asistida, aseo y control vespertino",
+                duracionMinutos = 60
+            ),
+            TurnoAtencionEmpleado(
+                id = 6L,
+                horaInicio = LocalTime.of(8, 30),
+                horaFin = LocalTime.of(10, 0),
+                paciente = "Roberto Gómez",
+                habitacion = "Hab. 204",
+                tarea = "Asistencia matutina de desayuno e higiene",
+                duracionMinutos = 90,
+                esManana = true
+            ),
+            TurnoAtencionEmpleado(
+                id = 7L,
+                horaInicio = LocalTime.of(10, 30),
+                horaFin = LocalTime.of(11, 30),
+                paciente = "Jorge Méndez",
+                habitacion = "Hab. 108",
+                tarea = "Control clínico matutino y signos",
+                duracionMinutos = 60,
+                esManana = true
+            )
+        )
+    }
+
+    val now = remember { LocalTime.now() }
+    val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
+
+    // Detección reactiva: al cumplirse el horario de atención, pasa automáticamente al siguiente paciente
+    val indexNatural = remember(turnosEmpleado, now) {
+        val idx = turnosEmpleado.indexOfFirst { !it.esManana && now.isBefore(it.horaFin) }
+        if (idx != -1) idx else turnosEmpleado.indexOfFirst { it.esManana }
+    }
+
+    // Offset interactivo para que el usuario pueda avanzar manualmente de turno al probar en el dispositivo
+    var turnoIndexOffset by remember { mutableStateOf(0) }
+    val currentIndex = (indexNatural + turnoIndexOffset) % turnosEmpleado.size
+    val turnoActual = turnosEmpleado[currentIndex]
+    val siguienteTurno = turnosEmpleado[(currentIndex + 1) % turnosEmpleado.size]
+    val isEnCurso = !turnoActual.esManana && now >= turnoActual.horaInicio && now < turnoActual.horaFin
+
+    val duracionLabel = if (turnoActual.duracionMinutos == 60) "1 hora" else "1 hora y media"
+
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        // Tarjeta de Guardia Asignada
+        // Tarjeta Dinámica de Atención al Paciente (1h a 1.5h con pase al siguiente paciente)
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
@@ -513,31 +616,119 @@ private fun EmpleadoSection(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Turno Activo Hoy",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Column {
+                        Text(
+                            text = if (isEnCurso) "Atención en Curso" else if (turnoActual.esManana) "Próxima Atención (Mañana)" else "Próxima Atención Asignada",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Duración: $duracionLabel",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    val badgeColor = when {
+                        isEnCurso -> Color(0xFF10B981)
+                        turnoActual.esManana -> MaterialTheme.colorScheme.primary
+                        else -> Color(0xFF0284C7)
+                    }
+                    val badgeTexto = when {
+                        isEnCurso -> "En Atención"
+                        turnoActual.esManana -> "Mañana"
+                        else -> "Próximo"
+                    }
+
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFF10B981)
+                        color = badgeColor
                     ) {
                         Text(
-                            text = "En Servicio",
+                            text = badgeTexto,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Datos del paciente y horario
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(text = "🩺", fontSize = 18.sp)
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "${turnoActual.paciente} (${turnoActual.habitacion})",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "⏰ ${if (turnoActual.esManana) "Mañana " else ""}${turnoActual.horaInicio.format(timeFormatter)} - ${turnoActual.horaFin.format(timeFormatter)} hs ($duracionLabel)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(6.dp))
+
                 Text(
-                    text = "08:00 - 16:00 hs • Paciente: Roberto Gómez (Hab. 204)",
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = "Tarea: ${turnoActual.tarea}",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                Spacer(modifier = Modifier.height(10.dp))
+                androidx.compose.material3.Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Fila con siguiente paciente en línea y botón de avance para prueba
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Siguiente paciente en turno:",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${siguienteTurno.paciente} (${siguienteTurno.horaInicio.format(timeFormatter)} hs)",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    TextButton(
+                        onClick = { turnoIndexOffset++ },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "Siguiente ⏭️",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             }
         }
 
@@ -568,7 +759,7 @@ private fun EmpleadoSection(
 
         ActionNavCard(
             titulo = "Mis Turnos Programados (Hoy en adelante)",
-            subtitulo = "Cronograma filtrado de visitas y guardias futuras",
+            subtitulo = "Cronograma filtrado de 1h a 1.5h por paciente",
             icono = Icons.Default.CalendarMonth,
             colorIcono = MaterialTheme.colorScheme.secondary,
             tag = "Próximos",
@@ -651,6 +842,63 @@ private fun UsuarioSection(
                         )
                     }
                 }
+            }
+        }
+
+        // Tarjeta de Próxima Visita Médica Confirmada (1h de atención)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Próxima Visita Médica Confirmada",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Text(
+                            text = "Mañana 1h",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.CalendarMonth,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Mañana • 09:30 - 10:30 hs (Dr. Alejandro Gómez)",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Motivo: Evaluación médica geriátrica semestral",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
 
