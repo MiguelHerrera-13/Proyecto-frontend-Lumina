@@ -9,5 +9,8 @@ import retrofit2.http.POST
 interface AuthApiService {
     @POST("api/auth/login")
     suspend fun login(@Body request: LoginRequestDto): Response<LoginResponseDto>
+
+    @POST("api/auth/verificar-codigo")
+    suspend fun verificarCodigo(@Body body: Map<String, String>): Response<Map<String, String>>
 }
 

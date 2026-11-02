@@ -14,6 +14,7 @@ sealed class RegisterState {
     object Idle : RegisterState()
     object Loading : RegisterState()
     data class Success(val message: String) : RegisterState()
+    data class Activated(val message: String) : RegisterState()
     data class Error(val message: String) : RegisterState()
 }
 
@@ -41,7 +42,7 @@ class RegisterViewModel : ViewModel() {
                 val response = repository.registrarUsuario(request)
 
                 if (response.isSuccessful) {
-                    _registerState.value = RegisterState.Success("Usuario registrado exitosamente")
+                    _registerState.value = RegisterState.Success("Solicitud de registro enviada. Revisa tu correo de cuidadores.ies@gmail.com")
                 } else if (response.code() == 409) {
                     _registerState.value = RegisterState.Error("El correo electrónico ya existe")
                 } else {
@@ -49,6 +50,27 @@ class RegisterViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 _registerState.value = RegisterState.Error("Error de red: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun verificarCodigo(token: String) {
+        if (token.isBlank()) {
+            _registerState.value = RegisterState.Error("Introduce el código recibido")
+            return
+        }
+        viewModelScope.launch {
+            _registerState.value = RegisterState.Loading
+            try {
+                val response = RetrofitClient.authApiService.verificarCodigo(mapOf("token" to token.trim().uppercase()))
+                if (response.isSuccessful) {
+                    val msg = response.body()?.get("mensaje") ?: "¡Cuenta activada con éxito!"
+                    _registerState.value = RegisterState.Activated(msg)
+                } else {
+                    _registerState.value = RegisterState.Error("Código o token inválido o expirado")
+                }
+            } catch (e: Exception) {
+                _registerState.value = RegisterState.Error("Error de conexión: ${e.localizedMessage}")
             }
         }
     }
