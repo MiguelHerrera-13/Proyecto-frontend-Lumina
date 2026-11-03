@@ -1,5 +1,6 @@
 package com.lumina.frontend.ui.screens
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -67,10 +68,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lumina.frontend.data.local.SessionManager
@@ -258,17 +263,21 @@ fun RoleDashboardScreen(
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(roleColor.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = role.icono,
-                                fontSize = 18.sp
-                            )
+                        if (role == UserRole.SUPER_ADMIN) {
+                            DefaultProfileAvatar(avatarSize = 36.dp)
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(roleColor.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = role.icono,
+                                    fontSize = 18.sp
+                                )
+                            }
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
@@ -355,14 +364,18 @@ fun RoleDashboardScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(46.dp)
-                                            .clip(CircleShape)
-                                            .background(roleColor.copy(alpha = 0.18f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(text = role.icono, fontSize = 22.sp)
+                                    if (role == UserRole.SUPER_ADMIN) {
+                                        DefaultProfileAvatar(avatarSize = 46.dp)
+                                    } else {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(46.dp)
+                                                .clip(CircleShape)
+                                                .background(roleColor.copy(alpha = 0.18f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(text = role.icono, fontSize = 22.sp)
+                                        }
                                     }
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Column {
@@ -1870,6 +1883,41 @@ private fun ActionNavCard(
                 contentDescription = "Ir",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                 modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+
+@Composable
+private fun DefaultProfileAvatar(avatarSize: Dp) {
+    Box(
+        modifier = Modifier
+            .size(avatarSize)
+            .clip(CircleShape)
+            .background(Color(0xFFE4E6EB))
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            val silhouetteColor = Color(0xFF8A8D91)
+
+            drawCircle(
+                color = silhouetteColor,
+                radius = w * 0.19f,
+                center = Offset(w * 0.5f, h * 0.37f)
+            )
+
+            drawOval(
+                color = silhouetteColor,
+                topLeft = Offset(w * 0.11f, h * 0.62f),
+                size = Size(w * 0.78f, h * 0.72f)
+            )
+
+            drawCircle(
+                color = Color(0xFFD0D3D9),
+                radius = (w / 2f) - 0.5.dp.toPx(),
+                style = Stroke(width = 1.dp.toPx())
             )
         }
     }
