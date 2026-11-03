@@ -258,34 +258,17 @@ fun RoleDashboardScreen(
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (role == UserRole.SUPER_ADMIN) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFE4E6EB)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = "Foto de perfil",
-                                    tint = Color(0xFF65676B),
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(roleColor.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = role.icono,
-                                    fontSize = 18.sp
-                                )
-                            }
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(roleColor.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = role.icono,
+                                fontSize = 18.sp
+                            )
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
@@ -372,31 +355,14 @@ fun RoleDashboardScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    if (role == UserRole.SUPER_ADMIN) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(46.dp)
-                                                .clip(CircleShape)
-                                                .background(Color(0xFFE4E6EB)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Person,
-                                                contentDescription = "Foto de perfil",
-                                                tint = Color(0xFF65676B),
-                                                modifier = Modifier.size(30.dp)
-                                            )
-                                        }
-                                    } else {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(46.dp)
-                                                .clip(CircleShape)
-                                                .background(roleColor.copy(alpha = 0.18f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(text = role.icono, fontSize = 22.sp)
-                                        }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(46.dp)
+                                            .clip(CircleShape)
+                                            .background(roleColor.copy(alpha = 0.18f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(text = role.icono, fontSize = 22.sp)
                                     }
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Column {

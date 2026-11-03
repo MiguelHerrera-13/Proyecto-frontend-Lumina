@@ -18,7 +18,7 @@ enum class UserRole(
         code = "SUPER_ADMIN",
         titulo = "Super Admin",
         subtitulo = "Acceso global: Pacientes, Turnos, Métricas y Gestión total",
-        icono = "👤",
+        icono = "👑",
         colorHex = 0xFF7C3AED // Violeta elegante
     ),
     EMPLEADO(

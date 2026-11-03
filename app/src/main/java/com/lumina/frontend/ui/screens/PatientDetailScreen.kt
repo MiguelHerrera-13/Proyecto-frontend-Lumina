@@ -378,7 +378,7 @@ private fun PatientHeader(paciente: PacienteResponseDto, onEditarClick: () -> Un
                 ) {
                     Text(
                         text = if (currentRole == UserRole.SUPER_ADMIN)
-                            "🛡️ Modo Super Admin: Edición Habilitada"
+                            "👑 Modo Super Admin: Edición Habilitada"
                         else
                             "🔒 Vista de Sólo Lectura (Edición exclusiva para Super Admin)",
                         fontSize = 11.sp,
