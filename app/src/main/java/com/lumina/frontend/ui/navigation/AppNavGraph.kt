@@ -71,6 +71,9 @@ fun AppNavGraph(
                 onNavigateToCrearReporte = { turnoId ->
                     navController.navigate(Screen.CrearReporteDiario.createRoute(turnoId))
                 },
+                onNavigateToPatientDetail = { pacienteId ->
+                    navController.navigate(Screen.PatientDetail.createRoute(pacienteId))
+                },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }

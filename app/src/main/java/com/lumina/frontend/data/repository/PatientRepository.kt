@@ -29,10 +29,28 @@ class PatientRepository(
     }
 
     private fun filtrarPorRol(lista: List<PacienteResponseDto>): List<PacienteResponseDto> {
-        val role = SessionManager.getCurrentRole()
+        val session = SessionManager.currentSession.value
+        val role = session?.rol
+        val sessionEmail = session?.email?.lowercase() ?: ""
+        val sessionNombre = session?.nombre?.lowercase() ?: ""
+
         return when (role) {
-            UserRole.EMPLEADO -> lista.filter { it.idPaciente == 1L || it.idPaciente == 4L }
-            UserRole.USUARIO -> lista.filter { it.idPaciente == 1L }
+            UserRole.EMPLEADO -> {
+                val asignados = lista.filter { p ->
+                    val empName = p.nombreEmpleadoAsignado?.lowercase() ?: ""
+                    empName.isNotBlank() && (empName.contains(sessionNombre) || sessionNombre.contains(empName))
+                }
+                if (asignados.isNotEmpty()) asignados else lista
+            }
+            UserRole.USUARIO -> {
+                val familiares = lista.filter { p ->
+                    val famEmail = p.emailFamiliarAsignado?.lowercase() ?: ""
+                    val famNombre = p.nombreFamiliarAsignado?.lowercase() ?: ""
+                    (famEmail.isNotBlank() && famEmail == sessionEmail) ||
+                    (famNombre.isNotBlank() && (sessionNombre.contains(famNombre) || famNombre.contains(sessionNombre)))
+                }
+                if (familiares.isNotEmpty()) familiares else lista
+            }
             else -> lista
         }
     }
@@ -61,14 +79,28 @@ class PatientRepository(
                 FakePatientDataSource.addPatient(
                     nombreCompleto = guardado.nombreCompleto,
                     fechaNacimiento = guardado.fechaNacimiento,
-                    diagnosticoFase = guardado.diagnosticoFase ?: "Control clínico general"
+                    diagnosticoFase = guardado.diagnosticoFase ?: "Control clínico general",
+                    idEmpleadoAsignado = guardado.idEmpleadoAsignado,
+                    nombreEmpleadoAsignado = guardado.nombreEmpleadoAsignado,
+                    rolEmpleadoAsignado = guardado.rolEmpleadoAsignado,
+                    idFamiliarAsignado = guardado.idFamiliarAsignado,
+                    nombreFamiliarAsignado = guardado.nombreFamiliarAsignado,
+                    emailFamiliarAsignado = guardado.emailFamiliarAsignado,
+                    parentescoFamiliar = guardado.parentescoFamiliar
                 )
                 Result.success(guardado)
             } else {
                 val localPatient = FakePatientDataSource.addPatient(
                     nombreCompleto = paciente.nombreCompleto,
                     fechaNacimiento = paciente.fechaNacimiento,
-                    diagnosticoFase = paciente.diagnosticoFase ?: "Control clínico general"
+                    diagnosticoFase = paciente.diagnosticoFase ?: "Control clínico general",
+                    idEmpleadoAsignado = paciente.idEmpleadoAsignado,
+                    nombreEmpleadoAsignado = paciente.nombreEmpleadoAsignado,
+                    rolEmpleadoAsignado = paciente.rolEmpleadoAsignado,
+                    idFamiliarAsignado = paciente.idFamiliarAsignado,
+                    nombreFamiliarAsignado = paciente.nombreFamiliarAsignado,
+                    emailFamiliarAsignado = paciente.emailFamiliarAsignado,
+                    parentescoFamiliar = paciente.parentescoFamiliar
                 )
                 Result.success(localPatient)
             }
@@ -76,9 +108,58 @@ class PatientRepository(
             val localPatient = FakePatientDataSource.addPatient(
                 nombreCompleto = paciente.nombreCompleto,
                 fechaNacimiento = paciente.fechaNacimiento,
-                diagnosticoFase = paciente.diagnosticoFase ?: "Control clínico general"
+                diagnosticoFase = paciente.diagnosticoFase ?: "Control clínico general",
+                idEmpleadoAsignado = paciente.idEmpleadoAsignado,
+                nombreEmpleadoAsignado = paciente.nombreEmpleadoAsignado,
+                rolEmpleadoAsignado = paciente.rolEmpleadoAsignado,
+                idFamiliarAsignado = paciente.idFamiliarAsignado,
+                nombreFamiliarAsignado = paciente.nombreFamiliarAsignado,
+                emailFamiliarAsignado = paciente.emailFamiliarAsignado,
+                parentescoFamiliar = paciente.parentescoFamiliar
             )
             Result.success(localPatient)
+        }
+    }
+
+    suspend fun asignarFamiliar(
+        id: Long,
+        nombreFamiliar: String,
+        emailFamiliar: String,
+        parentesco: String
+    ): Result<PacienteResponseDto> {
+        return try {
+            val body = mapOf(
+                "nombreFamiliar" to nombreFamiliar,
+                "emailFamiliar" to emailFamiliar,
+                "parentesco" to parentesco
+            )
+            val response = apiService.asignarFamiliar(id, body)
+            if (response.isSuccessful && response.body() != null) {
+                val guardado = response.body()!!
+                Result.success(guardado)
+            } else {
+                val local = FakePatientDataSource.updatePatient(
+                    id = id,
+                    nombreCompleto = "",
+                    fechaNacimiento = "",
+                    diagnosticoFase = "",
+                    nombreFamiliarAsignado = nombreFamiliar,
+                    emailFamiliarAsignado = emailFamiliar,
+                    parentescoFamiliar = parentesco
+                )
+                if (local != null) Result.success(local) else Result.failure(Exception("Error al asignar familiar"))
+            }
+        } catch (e: Exception) {
+            val local = FakePatientDataSource.updatePatient(
+                id = id,
+                nombreCompleto = "",
+                fechaNacimiento = "",
+                diagnosticoFase = "",
+                nombreFamiliarAsignado = nombreFamiliar,
+                emailFamiliarAsignado = emailFamiliar,
+                parentescoFamiliar = parentesco
+            )
+            if (local != null) Result.success(local) else Result.failure(e)
         }
     }
 

@@ -400,12 +400,15 @@ fun PatientsScreen(
     if (showPatientForm) {
         PatientFormDialog(
             onDismiss = { showPatientForm = false },
-            onAddPatient = { nombre, fecha, diagnostico ->
+            onAddPatient = { nombre, fecha, diagnostico, idEmp, nomEmp, rolEmp ->
                 showPatientForm = false
                 patientsViewModel.crearPaciente(
                     nombreCompleto = nombre,
                     fechaNacimiento = fecha,
-                    diagnosticoFase = diagnostico.ifBlank { null }
+                    diagnosticoFase = diagnostico.ifBlank { null },
+                    idEmpleadoAsignado = idEmp,
+                    nombreEmpleadoAsignado = nomEmp,
+                    rolEmpleadoAsignado = rolEmp
                 )
             }
         )
@@ -494,6 +497,30 @@ fun PatientCardItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+
+                if (!paciente.nombreEmpleadoAsignado.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "🩺 Profesional: ${paciente.nombreEmpleadoAsignado}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                if (!paciente.nombreFamiliarAsignado.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "👥 Familiar: ${paciente.nombreFamiliarAsignado} (${paciente.parentescoFamiliar ?: "Familiar"})",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF0D9488),
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }

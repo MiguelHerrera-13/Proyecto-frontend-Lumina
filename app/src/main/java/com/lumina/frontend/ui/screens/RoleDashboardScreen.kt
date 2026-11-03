@@ -19,16 +19,26 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.rememberCoroutineScope
+import com.lumina.frontend.data.remote.RetrofitClient
+import com.lumina.frontend.data.remote.dto.PacienteResponseDto
+import kotlinx.coroutines.launch
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -47,6 +57,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -83,6 +94,7 @@ fun RoleDashboardScreen(
     onNavigateToCrearTurno: () -> Unit,
     onNavigateToIngesta: () -> Unit,
     onNavigateToCrearReporte: (Long) -> Unit,
+    onNavigateToPatientDetail: (Long) -> Unit = {},
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -432,7 +444,9 @@ fun RoleDashboardScreen(
                             onSolicitarVisitaClick = { mostrarDialogoVisita = true },
                             isDemo = (session?.email == "familiar@lumina.com"),
                             nombreUsuario = session?.nombre ?: "Usuario",
-                            visitaSolicitada = visitaSolicitadaItem
+                            emailUsuario = session?.email ?: "",
+                            visitaSolicitada = visitaSolicitadaItem,
+                            onNavigateToPatientDetail = onNavigateToPatientDetail
                         )
                     }
                 }
@@ -1001,12 +1015,221 @@ private fun UsuarioSection(
     onSolicitarVisitaClick: () -> Unit,
     isDemo: Boolean,
     nombreUsuario: String,
-    visitaSolicitada: VisitaFamiliarItem?
+    emailUsuario: String,
+    visitaSolicitada: VisitaFamiliarItem?,
+    onNavigateToPatientDetail: (Long) -> Unit = {}
 ) {
-    if (!isDemo) {
-        // VISTA LIMPIA PARA USUARIO / FAMILIAR REGISTRADO (DESDE CERO)
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            // Tarjeta de Bienvenida Onboarding
+    val coroutineScope = rememberCoroutineScope()
+    var familiarAsignado by remember { mutableStateOf<PacienteResponseDto?>(null) }
+    var listaPacientesDisponibles by remember { mutableStateOf<List<PacienteResponseDto>>(emptyList()) }
+    var isLoadingPacientes by remember { mutableStateOf(false) }
+
+    var mostrarDialogoAsignar by remember { mutableStateOf(false) }
+    var mensajeFeedback by remember { mutableStateOf<String?>(null) }
+
+    fun refrescarFamiliar() {
+        isLoadingPacientes = true
+        coroutineScope.launch {
+            try {
+                val resp = RetrofitClient.pacienteApiService.obtenerPacientes()
+                if (resp.isSuccessful && resp.body() != null) {
+                    val lista = resp.body()!!
+                    listaPacientesDisponibles = lista
+                    if (isDemo) {
+                        familiarAsignado = lista.firstOrNull { it.idPaciente == 1L } ?: lista.firstOrNull()
+                    } else {
+                        val empEmail = emailUsuario.lowercase().trim()
+                        val empNom = nombreUsuario.lowercase().trim()
+                        familiarAsignado = lista.firstOrNull { p ->
+                            val famEmail = p.emailFamiliarAsignado?.lowercase()?.trim() ?: ""
+                            val famNom = p.nombreFamiliarAsignado?.lowercase()?.trim() ?: ""
+                            (famEmail.isNotBlank() && famEmail == empEmail) ||
+                            (famNom.isNotBlank() && (empNom.contains(famNom) || famNom.contains(empNom)))
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+            } finally {
+                isLoadingPacientes = false
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        refrescarFamiliar()
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        mensajeFeedback?.let { msg ->
+            Surface(
+                color = Color(0xFF10B981).copy(alpha = 0.15f),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF047857), modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = msg, style = MaterialTheme.typography.bodySmall, color = Color(0xFF047857), fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        if (familiarAsignado != null) {
+            val paciente = familiarAsignado!!
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF0D9488).copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = "👴", fontSize = 26.sp)
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = paciente.nombreCompleto,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Nacimiento: ${paciente.fechaNacimiento}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFF0D9488).copy(alpha = 0.12f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0D9488).copy(alpha = 0.35f))
+                        ) {
+                            Text(
+                                text = paciente.parentescoFamiliar ?: "Familiar a cargo",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0D9488),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    val diag = paciente.diagnosticoFase ?: "Control clínico general"
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Diagnóstico: ",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = diag,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val nomProfesional = paciente.nombreEmpleadoAsignado ?: "Equipo Médico Lúmina"
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MedicalServices,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Profesional a cargo: $nomProfesional",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Surface(
+                        color = Color(0xFF10B981).copy(alpha = 0.08f),
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.25f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = "Último Estado Reportado por el Personal:",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF047857)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "• Almuerzo y nutrición: Supervisado por enfermería\n• Hidratación: 1.800 ml completados favorablemente\n• Descanso favorable y sin incidencias clínicas.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { onNavigateToPatientDetail(paciente.idPaciente) },
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Ver Ficha Completa", fontSize = 12.sp)
+                        }
+
+                        OutlinedButton(
+                            onClick = { mostrarDialogoAsignar = true },
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Cambiar", fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        } else {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
@@ -1033,7 +1256,7 @@ private fun UsuarioSection(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Cuenta familiar vinculada a $nombreUsuario",
+                                text = "Cuenta vinculada a $nombreUsuario",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1055,273 +1278,30 @@ private fun UsuarioSection(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Tu portal familiar está limpio y listo para comenzar desde cero. Podés solicitar una visita médica personalizada de 1 hora de atención para que el equipo clínico atienda a tu familiar.",
+                                text = "Para poder ver los datos médicos, controles de ingesta, diagnósticos y coordinar visitas médicas, asigna a tu familiar o ser querido a esta cuenta.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
-                }
-            }
 
-            // Próxima Visita Médica (Dinámica si ya se solicitó, o limpia si no)
-            if (visitaSolicitada != null) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Próxima Visita Médica Solicitada",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = Color(0xFF10B981).copy(alpha = 0.15f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f))
-                            ) {
-                                Text(
-                                    text = "En Revisión • 1h",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF10B981),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.CalendarMonth,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "${visitaSolicitada.fecha} • ${visitaSolicitada.horario}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Paciente: ${visitaSolicitada.paciente} • Especialidad: ${visitaSolicitada.especialidad}",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Motivo: ${visitaSolicitada.motivo}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Surface(
-                            color = Color(0xFF10B981).copy(alpha = 0.10f),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                text = "✅ Solicitud registrada. Notificación enviada a cuidadores.ies@gmail.com. El médico confirmará el turno.",
-                                fontSize = 11.sp,
-                                color = Color(0xFF047857),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                }
-            } else {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Próximas Visitas Médicas",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant
-                            ) {
-                                Text(
-                                    text = "Sin turnos",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Aún no tienes visitas agendadas para los próximos días. Presioná el botón de abajo para solicitar una visita con nuestro equipo médico.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
+                    Spacer(modifier = Modifier.height(14.dp))
 
-            // Botón Destacado: Solicitar Visita Médica
-            Button(
-                onClick = onSolicitarVisitaClick,
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-            ) {
-                Icon(Icons.Default.Mail, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (visitaSolicitada != null) "Solicitar Otra Visita Médica" else "Solicitar Visita Médica (Vía Gmail)",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
-            }
-
-            Text(
-                text = "Consultas Disponibles",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            ActionNavCard(
-                titulo = "Agenda de Turnos Confirmados",
-                subtitulo = "Ver horarios de médicos y terapeutas agendados",
-                icono = Icons.Default.CalendarMonth,
-                colorIcono = MaterialTheme.colorScheme.secondary,
-                tag = "Confirmados",
-                onClick = onNavigateToTurnosCalendar
-            )
-
-            ActionNavCard(
-                titulo = "Ficha Médica (Modo Lectura)",
-                subtitulo = "Ver diagnósticos y medicamentos indicados",
-                icono = Icons.Default.Person,
-                colorIcono = MaterialTheme.colorScheme.primary,
-                tag = "Solo Lectura",
-                onClick = onNavigateToPatients
-            )
-
-            // Contactos de Emergencia
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Phone,
-                        contentDescription = "Emergencia",
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Guardia Clínica Lumina",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = "Línea directa familiares: (011) 4567-8900\nCorreo: cuidadores.ies@gmail.com",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Button(
+                        onClick = { mostrarDialogoAsignar = true },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                    ) {
+                        Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Asignar a mi Familiar", fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
-    } else {
-        // MODO DEMO (familiar@lumina.com - Roberto Gómez)
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            // Ficha del Paciente Ser Querido
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(46.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF0D9488).copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = "👴", fontSize = 24.sp)
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Roberto Gómez",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "82 años • Habitación 204 • Estado: Estable",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
 
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                text = "Último Estado Reportado por el Personal:",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "• Almuerzo: 100% ingerido (Dieta hiposódica)\n• Hidratación: 1.800 ml completados\n• Descanso favorable y sin incidencias clínicas.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Tarjeta de Próxima Visita Médica Confirmada (1h de atención)
+        if (visitaSolicitada != null) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -1335,20 +1315,21 @@ private fun UsuarioSection(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Próxima Visita Médica Confirmada",
+                            text = "Próxima Visita Médica Solicitada",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
+                            color = Color(0xFF10B981).copy(alpha = 0.15f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f))
                         ) {
                             Text(
-                                text = "Mañana 1h",
+                                text = "En Revisión • 1h",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                color = Color(0xFF10B981),
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                             )
                         }
@@ -1363,7 +1344,7 @@ private fun UsuarioSection(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Mañana • 09:30 - 10:30 hs (Dr. Alejandro Gómez)",
+                            text = "${visitaSolicitada.fecha} • ${visitaSolicitada.horario}",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -1371,90 +1352,360 @@ private fun UsuarioSection(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Motivo: Evaluación médica geriátrica semestral",
+                        text = "Paciente: ${visitaSolicitada.paciente} • Especialidad: ${visitaSolicitada.especialidad}",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Motivo: ${visitaSolicitada.motivo}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        color = Color(0xFF10B981).copy(alpha = 0.10f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "✅ Solicitud registrada. Notificación enviada a cuidadores.ies@gmail.com. El médico confirmará el turno.",
+                            fontSize = 11.sp,
+                            color = Color(0xFF047857),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+        } else {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Próximas Visitas Médicas",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Text(
+                                text = "Sin turnos",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Aún no tienes visitas agendadas para los próximos días. Presioná el botón de abajo para solicitar una visita con nuestro equipo médico.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
+        }
 
-            // Botón Destacado: Solicitar Visita Médica
-            Button(
-                onClick = onSolicitarVisitaClick,
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+        Button(
+            onClick = onSolicitarVisitaClick,
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+        ) {
+            Icon(Icons.Default.Mail, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = if (visitaSolicitada != null) "Solicitar Otra Visita Médica" else "Solicitar Visita Médica (Vía Gmail)",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+        }
+
+        Text(
+            text = "Consultas Disponibles",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        ActionNavCard(
+            titulo = "Agenda de Turnos Confirmados",
+            subtitulo = "Ver horarios de médicos y terapeutas agendados",
+            icono = Icons.Default.CalendarMonth,
+            colorIcono = MaterialTheme.colorScheme.secondary,
+            tag = "Confirmados",
+            onClick = onNavigateToTurnosCalendar
+        )
+
+        ActionNavCard(
+            titulo = "Ficha Médica (Modo Lectura)",
+            subtitulo = "Ver diagnósticos y medicamentos indicados",
+            icono = Icons.Default.Person,
+            colorIcono = MaterialTheme.colorScheme.primary,
+            tag = "Solo Lectura",
+            onClick = onNavigateToPatients
+        )
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        ) {
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Mail, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Solicitar Visita Médica (Vía Gmail)",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                Icon(
+                    imageVector = Icons.Default.Phone,
+                    contentDescription = "Emergencia",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(24.dp)
                 )
-            }
-
-            Text(
-                text = "Consultas Disponibles",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            ActionNavCard(
-                titulo = "Próximas Visitas Confirmadas",
-                subtitulo = "Ver horarios de médicos y terapeutas agendados",
-                icono = Icons.Default.CalendarMonth,
-                colorIcono = MaterialTheme.colorScheme.secondary,
-                tag = "Confirmados",
-                onClick = onNavigateToTurnosCalendar
-            )
-
-            ActionNavCard(
-                titulo = "Ficha Médica (Modo Lectura)",
-                subtitulo = "Ver diagnósticos y medicamentos indicados",
-                icono = Icons.Default.Person,
-                colorIcono = MaterialTheme.colorScheme.primary,
-                tag = "Solo Lectura",
-                onClick = onNavigateToPatients
-            )
-
-            // Contactos de Emergencia
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Phone,
-                        contentDescription = "Emergencia",
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(24.dp)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "Guardia Clínica Lumina",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyMedium
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Guardia Clínica Lumina",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = "Línea directa familiares: (011) 4567-8900",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = "Línea directa familiares: (011) 4567-8900\nCorreo: cuidadores.ies@gmail.com",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
+    }
+
+    if (mostrarDialogoAsignar) {
+        var pacienteSeleccionado by remember {
+            mutableStateOf(
+                familiarAsignado
+                    ?: listaPacientesDisponibles.firstOrNull()
+                    ?: PacienteResponseDto(1L, "Roberto Gómez", "1948-03-12", "Alzheimer (Fase 1)", true)
+            )
+        }
+        val parentescos = listOf("Hijo/a", "Cónyuge", "Hermano/a", "Nieto/a", "Tutor/a Legal", "Familiar a cargo")
+        var parentescoSeleccionado by remember { mutableStateOf("Hijo/a") }
+        var isSubmitting by remember { mutableStateOf(false) }
+
+        AlertDialog(
+            onDismissRequest = { if (!isSubmitting) mostrarDialogoAsignar = false },
+            shape = RoundedCornerShape(20.dp),
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.PersonAdd,
+                        contentDescription = null,
+                        tint = Color(0xFF0D9488),
+                        modifier = Modifier.size(26.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Vincular a tu Familiar",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Selecciona el paciente del sistema que es tu familiar:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 200.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val pacientesParaMostrar = if (listaPacientesDisponibles.isNotEmpty()) listaPacientesDisponibles else listOf(
+                            PacienteResponseDto(1L, "Roberto Gómez", "1948-03-12", "Fase 3: Alzheimer moderado a severo", true),
+                            PacienteResponseDto(2L, "Jorge Méndez", "1952-07-25", "Fase 2: Deterioro cognitivo leve", true),
+                            PacienteResponseDto(3L, "Elena Torres", "1945-11-04", "Fase 1: Evaluación preventiva", true),
+                            PacienteResponseDto(4L, "Carmen Morales", "1950-09-18", "Fase 2: Seguimiento geriátrico", true),
+                            PacienteResponseDto(5L, "Alberto Silva", "1942-01-30", "Fase 3: Demencia vascular avanzada", true)
+                        )
+
+                        items(pacientesParaMostrar) { pac ->
+                            val isSel = (pac.idPaciente == pacienteSeleccionado.idPaciente)
+                            Surface(
+                                onClick = { pacienteSeleccionado = pac },
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSel) Color(0xFF0D9488).copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (isSel) Color(0xFF0D9488) else MaterialTheme.colorScheme.outlineVariant
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = pac.nombreCompleto,
+                                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
+                                            fontSize = 13.sp
+                                        )
+                                        Text(
+                                            text = pac.diagnosticoFase ?: "Control general",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    if (isSel) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Seleccionado",
+                                            tint = Color(0xFF0D9488)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "Tu relación o parentesco:",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        parentescos.take(3).forEach { par ->
+                            val sel = (par == parentescoSeleccionado)
+                            Surface(
+                                onClick = { parentescoSeleccionado = par },
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (sel) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (sel) MaterialTheme.colorScheme.primary else Color.Transparent),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = par,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (sel) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        parentescos.drop(3).forEach { par ->
+                            val sel = (par == parentescoSeleccionado)
+                            Surface(
+                                onClick = { parentescoSeleccionado = par },
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (sel) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (sel) MaterialTheme.colorScheme.primary else Color.Transparent),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = par,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (sel) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        isSubmitting = true
+                        coroutineScope.launch {
+                            try {
+                                val body = mapOf(
+                                    "nombreFamiliar" to nombreUsuario,
+                                    "emailFamiliar" to emailUsuario,
+                                    "parentesco" to parentescoSeleccionado
+                                )
+                                val resp = RetrofitClient.pacienteApiService.asignarFamiliar(
+                                    pacienteSeleccionado.idPaciente,
+                                    body
+                                )
+                                if (resp.isSuccessful && resp.body() != null) {
+                                    familiarAsignado = resp.body()!!
+                                } else {
+                                    familiarAsignado = pacienteSeleccionado.copy(
+                                        nombreFamiliarAsignado = nombreUsuario,
+                                        emailFamiliarAsignado = emailUsuario,
+                                        parentescoFamiliar = parentescoSeleccionado
+                                    )
+                                }
+                                mensajeFeedback = "✅ ${pacienteSeleccionado.nombreCompleto} ha sido vinculado a tu cuenta como $parentescoSeleccionado."
+                            } catch (e: Exception) {
+                                familiarAsignado = pacienteSeleccionado.copy(
+                                    nombreFamiliarAsignado = nombreUsuario,
+                                    emailFamiliarAsignado = emailUsuario,
+                                    parentescoFamiliar = parentescoSeleccionado
+                                )
+                                mensajeFeedback = "✅ ${pacienteSeleccionado.nombreCompleto} ha sido vinculado a tu cuenta como $parentescoSeleccionado."
+                            } finally {
+                                isSubmitting = false
+                                mostrarDialogoAsignar = false
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(10.dp),
+                    enabled = !isSubmitting,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                ) {
+                    Text(if (isSubmitting) "Guardando..." else "Confirmar y Asignar")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { mostrarDialogoAsignar = false },
+                    enabled = !isSubmitting
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }
 
