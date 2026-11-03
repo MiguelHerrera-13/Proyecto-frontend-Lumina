@@ -151,7 +151,14 @@ object FakePatientDataSource {
     fun addPatient(
         nombreCompleto: String,
         fechaNacimiento: String,
-        diagnosticoFase: String?
+        diagnosticoFase: String?,
+        idEmpleadoAsignado: Long? = null,
+        nombreEmpleadoAsignado: String? = null,
+        rolEmpleadoAsignado: String? = null,
+        idFamiliarAsignado: Long? = null,
+        nombreFamiliarAsignado: String? = null,
+        emailFamiliarAsignado: String? = null,
+        parentescoFamiliar: String? = null
     ): PacienteResponseDto {
         val nextId = (fakePatientsList.maxOfOrNull { it.idPaciente } ?: 0L) + 1L
         val newPatient = PacienteResponseDto(
@@ -159,7 +166,14 @@ object FakePatientDataSource {
             nombreCompleto = nombreCompleto.trim(),
             fechaNacimiento = fechaNacimiento,
             diagnosticoFase = diagnosticoFase?.ifBlank { "Control clínico general" } ?: "Control clínico general",
-            activo = true
+            activo = true,
+            idEmpleadoAsignado = idEmpleadoAsignado,
+            nombreEmpleadoAsignado = nombreEmpleadoAsignado,
+            rolEmpleadoAsignado = rolEmpleadoAsignado,
+            idFamiliarAsignado = idFamiliarAsignado,
+            nombreFamiliarAsignado = nombreFamiliarAsignado,
+            emailFamiliarAsignado = emailFamiliarAsignado,
+            parentescoFamiliar = parentescoFamiliar
         )
         fakePatientsList.add(0, newPatient) // Añadir al inicio para visibilidad inmediata
         return newPatient
@@ -169,14 +183,29 @@ object FakePatientDataSource {
         id: Long,
         nombreCompleto: String,
         fechaNacimiento: String,
-        diagnosticoFase: String
+        diagnosticoFase: String,
+        idEmpleadoAsignado: Long? = null,
+        nombreEmpleadoAsignado: String? = null,
+        rolEmpleadoAsignado: String? = null,
+        idFamiliarAsignado: Long? = null,
+        nombreFamiliarAsignado: String? = null,
+        emailFamiliarAsignado: String? = null,
+        parentescoFamiliar: String? = null
     ): PacienteResponseDto? {
         val index = fakePatientsList.indexOfFirst { it.idPaciente == id }
         if (index != -1) {
-            val updated = fakePatientsList[index].copy(
+            val current = fakePatientsList[index]
+            val updated = current.copy(
                 nombreCompleto = nombreCompleto.trim(),
                 fechaNacimiento = fechaNacimiento.trim(),
-                diagnosticoFase = diagnosticoFase.trim()
+                diagnosticoFase = diagnosticoFase.trim(),
+                idEmpleadoAsignado = idEmpleadoAsignado ?: current.idEmpleadoAsignado,
+                nombreEmpleadoAsignado = nombreEmpleadoAsignado ?: current.nombreEmpleadoAsignado,
+                rolEmpleadoAsignado = rolEmpleadoAsignado ?: current.rolEmpleadoAsignado,
+                idFamiliarAsignado = idFamiliarAsignado ?: current.idFamiliarAsignado,
+                nombreFamiliarAsignado = nombreFamiliarAsignado ?: current.nombreFamiliarAsignado,
+                emailFamiliarAsignado = emailFamiliarAsignado ?: current.emailFamiliarAsignado,
+                parentescoFamiliar = parentescoFamiliar ?: current.parentescoFamiliar
             )
             fakePatientsList[index] = updated
             return updated

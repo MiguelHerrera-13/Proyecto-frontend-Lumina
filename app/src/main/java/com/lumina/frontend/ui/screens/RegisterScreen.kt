@@ -83,6 +83,7 @@ fun RegisterScreen(
     var expandedRol by remember { mutableStateOf(false) }
 
     var mostrarDialogoAprobacion by remember { mutableStateOf(false) }
+    var codigoVerificacion by remember { mutableStateOf("") }
 
     val registerState by viewModel.registerState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -93,33 +94,37 @@ fun RegisterScreen(
     val isFormValid = nombre.isNotBlank() && isEmailValid && isPasswordValid
 
     LaunchedEffect(registerState) {
-        when (registerState) {
+        when (val state = registerState) {
             is RegisterState.Success -> {
                 mostrarDialogoAprobacion = true
             }
+            is RegisterState.Activated -> {
+                mostrarDialogoAprobacion = true
+            }
             is RegisterState.Error -> {
-                snackbarHostState.showSnackbar((registerState as RegisterState.Error).message)
-                viewModel.resetState()
+                snackbarHostState.showSnackbar(state.message)
             }
             else -> {}
         }
     }
 
     if (mostrarDialogoAprobacion) {
+        val isActivated = registerState is RegisterState.Activated
+
         AlertDialog(
             onDismissRequest = { /* No dismiss clicking outside */ },
             shape = RoundedCornerShape(20.dp),
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Éxito",
-                        tint = Color(0xFF10B981),
+                        imageVector = if (isActivated) Icons.Default.CheckCircle else Icons.Default.Mail,
+                        contentDescription = null,
+                        tint = if (isActivated) Color(0xFF10B981) else MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(28.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Solicitud Enviada a Gmail",
+                        text = if (isActivated) "¡Cuenta Activada!" else "Verificación de Cuenta",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -127,34 +132,116 @@ fun RegisterScreen(
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "Tu solicitud de registro para el rol de $selectedRol ha sido transmitida exitosamente a la administración clínica (lumina.salud.adm@gmail.com).",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
+                    if (isActivated) {
                         Text(
-                            text = "Por motivos de seguridad médica, una vez que el administrador acepte y valide tus credenciales, recibirás un correo de confirmación en $email para que puedas iniciar sesión.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(12.dp)
+                            text = "¡Excelente! Tu cuenta para $email ha sido activada y verificada exitosamente en el sistema.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
+                        Surface(
+                            color = Color(0xFF10B981).copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = "Ya puedes iniciar sesión normalmente con tu correo y contraseña.",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF065F46),
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "Se ha enviado un correo de verificación y activación para el rol de $selectedRol.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = "Remitente Oficial:",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "cuidadores.ies@gmail.com",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Destinatario: $email",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                        Text(
+                            text = "Revisa tu bandeja de entrada o spam. Haz clic en el enlace del correo o ingresa el código de 6 caracteres:",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        OutlinedTextField(
+                            value = codigoVerificacion,
+                            onValueChange = {
+                                if (it.length <= 6) codigoVerificacion = it.uppercase()
+                            },
+                            label = { Text("Código de verificación") },
+                            placeholder = { Text("Ej: A1B2C3") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        if (registerState is RegisterState.Error) {
+                            Text(
+                                text = (registerState as RegisterState.Error).message,
+                                color = MaterialTheme.colorScheme.error,
+                                fontSize = 12.sp
+                            )
+                        }
                     }
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        mostrarDialogoAprobacion = false
-                        viewModel.resetState()
-                        onNavigateBack()
-                    },
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text("Volver al Inicio de Sesión")
+                if (isActivated) {
+                    Button(
+                        onClick = {
+                            mostrarDialogoAprobacion = false
+                            viewModel.resetState()
+                            onNavigateBack()
+                        },
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Iniciar Sesión")
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            viewModel.verificarCodigo(codigoVerificacion)
+                        },
+                        enabled = codigoVerificacion.isNotBlank() && registerState != RegisterState.Loading,
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(if (registerState == RegisterState.Loading) "Verificando..." else "Activar Cuenta")
+                    }
+                }
+            },
+            dismissButton = {
+                if (!isActivated) {
+                    TextButton(
+                        onClick = {
+                            mostrarDialogoAprobacion = false
+                            viewModel.resetState()
+                            onNavigateBack()
+                        }
+                    ) {
+                        Text("Activar más tarde")
+                    }
                 }
             }
         )
@@ -360,8 +447,6 @@ fun RegisterScreen(
             Button(
                 onClick = {
                     viewModel.registerUser(nombre, email, password, selectedRol)
-                    // También activamos el diálogo de confirmación de envío a Gmail para experiencia fluida
-                    mostrarDialogoAprobacion = true
                 },
                 enabled = isFormValid && registerState != RegisterState.Loading,
                 shape = RoundedCornerShape(12.dp),

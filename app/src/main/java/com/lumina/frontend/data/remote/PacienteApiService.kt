@@ -23,6 +23,12 @@ interface PacienteApiService {
         @Body paciente: PacienteRequestDto
     ): Response<PacienteResponseDto>
 
+    @PUT("api/pacientes/{id}/asignar-familiar")
+    suspend fun asignarFamiliar(
+        @Path("id") id: Long,
+        @Body body: Map<String, String>
+    ): Response<PacienteResponseDto>
+
     @GET("api/pacientes/{id}")
     suspend fun obtenerPacientePorId(
         @Path("id") id: Long

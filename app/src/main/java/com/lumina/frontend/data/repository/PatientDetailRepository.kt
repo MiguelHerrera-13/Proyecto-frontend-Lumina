@@ -6,6 +6,7 @@ import com.lumina.frontend.data.remote.RetrofitClient
 import com.lumina.frontend.data.remote.TurnoApiService
 import com.lumina.frontend.data.remote.dto.HistorialResponseDto
 import com.lumina.frontend.data.remote.dto.MedicamentoResponseDto
+import com.lumina.frontend.data.remote.dto.PacienteRequestDto
 import com.lumina.frontend.data.remote.dto.PacienteResponseDto
 import com.lumina.frontend.data.remote.dto.TurnoResponseDto
 
@@ -38,26 +39,52 @@ class PatientDetailRepository(
         id: Long,
         nombre: String,
         fechaNacimiento: String,
-        diagnostico: String
+        diagnostico: String,
+        idEmpleadoAsignado: Long? = null,
+        nombreEmpleadoAsignado: String? = null,
+        rolEmpleadoAsignado: String? = null,
+        idFamiliarAsignado: Long? = null,
+        nombreFamiliarAsignado: String? = null,
+        emailFamiliarAsignado: String? = null,
+        parentescoFamiliar: String? = null
     ): Result<PacienteResponseDto> {
         return try {
             val response = RetrofitClient.pacienteApiService.actualizarPaciente(
                 id,
-                com.lumina.frontend.data.remote.dto.PacienteRequestDto(
+                PacienteRequestDto(
                     nombreCompleto = nombre,
                     fechaNacimiento = fechaNacimiento,
-                    diagnosticoFase = diagnostico
+                    diagnosticoFase = diagnostico,
+                    idEmpleadoAsignado = idEmpleadoAsignado,
+                    nombreEmpleadoAsignado = nombreEmpleadoAsignado,
+                    rolEmpleadoAsignado = rolEmpleadoAsignado,
+                    idFamiliarAsignado = idFamiliarAsignado,
+                    nombreFamiliarAsignado = nombreFamiliarAsignado,
+                    emailFamiliarAsignado = emailFamiliarAsignado,
+                    parentescoFamiliar = parentescoFamiliar
                 )
             )
-            FakePatientDataSource.updatePatient(id, nombre, fechaNacimiento, diagnostico)
+            FakePatientDataSource.updatePatient(
+                id, nombre, fechaNacimiento, diagnostico,
+                idEmpleadoAsignado, nombreEmpleadoAsignado, rolEmpleadoAsignado,
+                idFamiliarAsignado, nombreFamiliarAsignado, emailFamiliarAsignado, parentescoFamiliar
+            )
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
-                val updated = FakePatientDataSource.updatePatient(id, nombre, fechaNacimiento, diagnostico)
+                val updated = FakePatientDataSource.updatePatient(
+                    id, nombre, fechaNacimiento, diagnostico,
+                    idEmpleadoAsignado, nombreEmpleadoAsignado, rolEmpleadoAsignado,
+                    idFamiliarAsignado, nombreFamiliarAsignado, emailFamiliarAsignado, parentescoFamiliar
+                )
                 if (updated != null) Result.success(updated) else Result.failure(Exception("No se pudo actualizar el paciente"))
             }
         } catch (e: Exception) {
-            val updated = FakePatientDataSource.updatePatient(id, nombre, fechaNacimiento, diagnostico)
+            val updated = FakePatientDataSource.updatePatient(
+                id, nombre, fechaNacimiento, diagnostico,
+                idEmpleadoAsignado, nombreEmpleadoAsignado, rolEmpleadoAsignado,
+                idFamiliarAsignado, nombreFamiliarAsignado, emailFamiliarAsignado, parentescoFamiliar
+            )
             if (updated != null) {
                 Result.success(updated)
             } else {

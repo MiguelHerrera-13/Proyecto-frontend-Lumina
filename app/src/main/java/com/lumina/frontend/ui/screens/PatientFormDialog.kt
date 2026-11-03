@@ -1,36 +1,38 @@
 package com.lumina.frontend.ui.screens
 
 import android.app.DatePickerDialog
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.lumina.frontend.data.remote.RetrofitClient
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
+import kotlinx.coroutines.launch
+
+data class ProfesionalOption(
+    val id: Long?,
+    val nombre: String,
+    val rol: String
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,10 +41,14 @@ fun PatientFormDialog(
     onAddPatient: (
         nombreCompleto: String,
         fechaNacimiento: String,
-        diagnosticoFase: String
+        diagnosticoFase: String,
+        idEmpleadoAsignado: Long?,
+        nombreEmpleadoAsignado: String?,
+        rolEmpleadoAsignado: String?
     ) -> Unit
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val calendar = remember { Calendar.getInstance() }
 
     var nombreCompleto by remember { mutableStateOf("") }
@@ -52,7 +58,47 @@ fun PatientFormDialog(
     var nombreError by remember { mutableStateOf<String?>(null) }
     var fechaError by remember { mutableStateOf<String?>(null) }
 
-    // Selector de fecha nativo que bloquea fechas futuras (no se puede elegir mañana o después)
+    // Lista de profesionales médicos y empleados disponibles
+    val defaultProfesionales = listOf(
+        ProfesionalOption(null, "Sin profesional asignado", "NINGUNO"),
+        ProfesionalOption(39L, "Leonel Salomón", "MEDICO"),
+        ProfesionalOption(40L, "Miguel Herrera", "CUIDADOR"),
+        ProfesionalOption(41L, "Nicolás Penna", "MEDICO"),
+        ProfesionalOption(30L, "Dr. Cuidador", "EMPLEADO"),
+        ProfesionalOption(32L, "Dr. Carlos Prueba", "MEDICO")
+    )
+    var profesionalesDisponibles by remember { mutableStateOf(defaultProfesionales) }
+    var profesionalSeleccionado by remember { mutableStateOf(defaultProfesionales[1]) } // Por defecto Leonel Salomón o médico
+    var mostrarDialogoSeleccionProfesional by remember { mutableStateOf(false) }
+
+    // Cargar profesionales en tiempo real desde la base de datos MySQL
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            try {
+                val resp = RetrofitClient.usuarioApiService.obtenerUsuarios("EMPLEADOS_Y_MEDICOS")
+                if (resp.isSuccessful && resp.body() != null) {
+                    val usuariosDb = resp.body()!!
+                    val mapeados = usuariosDb.map { u ->
+                        ProfesionalOption(
+                            id = u.idUsuario,
+                            nombre = u.nombre,
+                            rol = u.rol ?: "EMPLEADO"
+                        )
+                    }
+                    if (mapeados.isNotEmpty()) {
+                        val combinada = mutableListOf(ProfesionalOption(null, "Sin profesional asignado", "NINGUNO"))
+                        combinada.addAll(mapeados)
+                        profesionalesDisponibles = combinada
+                        profesionalSeleccionado = combinada.firstOrNull { it.id != null } ?: combinada.first()
+                    }
+                }
+            } catch (e: Exception) {
+                // Mantener lista por defecto
+            }
+        }
+    }
+
+    // Selector de fecha nativo que bloquea fechas futuras
     val datePickerDialog = remember {
         DatePickerDialog(
             context,
@@ -74,7 +120,8 @@ fun PatientFormDialog(
         title = {
             Text(
                 text = "Registrar Nuevo Paciente",
-                style = MaterialTheme.typography.titleLarge
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
             )
         },
         text = {
@@ -105,7 +152,7 @@ fun PatientFormDialog(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Selector mediante Calendario interactivo (no manual para evitar errores y bloquear fechas futuras)
+                // Selector mediante Calendario interactivo
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -147,6 +194,61 @@ fun PatientFormDialog(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Selector de Médico o Empleado Asignado
+                Text(
+                    text = "Asignar Médico o Empleado a cargo:",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Surface(
+                    onClick = { mostrarDialogoSeleccionProfesional = true },
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.MedicalServices,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = profesionalSeleccionado.nombre,
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = if (profesionalSeleccionado.id != null) "Rol: ${profesionalSeleccionado.rol}" else "Opcional",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = "Desplegar",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
@@ -166,7 +268,10 @@ fun PatientFormDialog(
                         onAddPatient(
                             nombreCompleto.trim(),
                             fechaNacimiento,
-                            diagnosticoFase.trim()
+                            diagnosticoFase.trim(),
+                            profesionalSeleccionado.id,
+                            if (profesionalSeleccionado.id != null) profesionalSeleccionado.nombre else null,
+                            if (profesionalSeleccionado.id != null) profesionalSeleccionado.rol else null
                         )
                     }
                 },
@@ -181,4 +286,76 @@ fun PatientFormDialog(
             }
         }
     )
+
+    // Diálogo Modal para seleccionar al Profesional médico o empleado
+    if (mostrarDialogoSeleccionProfesional) {
+        AlertDialog(
+            onDismissRequest = { mostrarDialogoSeleccionProfesional = false },
+            title = {
+                Text(
+                    text = "Seleccionar Profesional a Cargo",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            },
+            text = {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 300.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(profesionalesDisponibles) { opcion ->
+                        val isSelected = (opcion.id == profesionalSeleccionado.id && opcion.nombre == profesionalSeleccionado.nombre)
+                        Surface(
+                            onClick = {
+                                profesionalSeleccionado = opcion
+                                mostrarDialogoSeleccionProfesional = false
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text(
+                                        text = opcion.nombre,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        text = if (opcion.id != null) "Rol: ${opcion.rol}" else "Sin asignación directa",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Seleccionado",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { mostrarDialogoSeleccionProfesional = false }) {
+                    Text("Listo")
+                }
+            }
+        )
+    }
 }

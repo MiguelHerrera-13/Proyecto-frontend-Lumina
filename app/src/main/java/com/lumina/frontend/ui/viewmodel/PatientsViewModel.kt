@@ -78,7 +78,9 @@ class PatientsViewModel(
             } else {
                 p.nombreCompleto.contains(query, ignoreCase = true) ||
                 p.idPaciente.toString().contains(query) ||
-                (p.diagnosticoFase?.contains(query, ignoreCase = true) == true)
+                (p.diagnosticoFase?.contains(query, ignoreCase = true) == true) ||
+                (p.nombreEmpleadoAsignado?.contains(query, ignoreCase = true) == true) ||
+                (p.nombreFamiliarAsignado?.contains(query, ignoreCase = true) == true)
             }
 
             val matchesFilter = when (filter) {
@@ -143,7 +145,10 @@ class PatientsViewModel(
     fun crearPaciente(
         nombreCompleto: String,
         fechaNacimiento: String,
-        diagnosticoFase: String?
+        diagnosticoFase: String?,
+        idEmpleadoAsignado: Long? = null,
+        nombreEmpleadoAsignado: String? = null,
+        rolEmpleadoAsignado: String? = null
     ) {
         _isLoading.value = true
 
@@ -152,14 +157,17 @@ class PatientsViewModel(
                 PacienteRequestDto(
                     nombreCompleto = nombreCompleto,
                     fechaNacimiento = fechaNacimiento,
-                    diagnosticoFase = diagnosticoFase
+                    diagnosticoFase = diagnosticoFase,
+                    idEmpleadoAsignado = idEmpleadoAsignado,
+                    nombreEmpleadoAsignado = nombreEmpleadoAsignado,
+                    rolEmpleadoAsignado = rolEmpleadoAsignado
                 )
             )
 
             _isLoading.value = false
             result.fold(
                 onSuccess = { _ ->
-                    _successMessage.value = "Paciente registrado correctamente"
+                    _successMessage.value = "Paciente registrado y asignado correctamente"
                     cargarPacientes()
                 },
                 onFailure = {

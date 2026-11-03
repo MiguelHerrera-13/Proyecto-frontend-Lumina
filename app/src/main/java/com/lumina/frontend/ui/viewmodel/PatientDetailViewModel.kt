@@ -87,10 +87,21 @@ class PatientDetailViewModel(
         nombre: String,
         fechaNacimiento: String,
         diagnostico: String,
+        idEmpleadoAsignado: Long? = null,
+        nombreEmpleadoAsignado: String? = null,
+        rolEmpleadoAsignado: String? = null,
         onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
-            val res = detailRepository.actualizarPaciente(id, nombre, fechaNacimiento, diagnostico)
+            val res = detailRepository.actualizarPaciente(
+                id = id,
+                nombre = nombre,
+                fechaNacimiento = fechaNacimiento,
+                diagnostico = diagnostico,
+                idEmpleadoAsignado = idEmpleadoAsignado,
+                nombreEmpleadoAsignado = nombreEmpleadoAsignado,
+                rolEmpleadoAsignado = rolEmpleadoAsignado
+            )
             if (res.isSuccess) {
                 cargarDetallePaciente(id)
                 onSuccess()

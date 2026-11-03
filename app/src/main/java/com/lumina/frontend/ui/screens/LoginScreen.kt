@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -94,6 +95,13 @@ fun LoginScreen(
     var loginErrorMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
 
+    // Diálogo para activar cuenta con código de verificación
+    var mostrarDialogoActivarCuenta by remember { mutableStateOf(false) }
+    var codigoActivacionLogin by remember { mutableStateOf("") }
+    var mensajeActivacion by remember { mutableStateOf<String?>(null) }
+    var errorActivacion by remember { mutableStateOf<String?>(null) }
+    var isActivating by remember { mutableStateOf(false) }
+
     // Validación estricta solicitada: email con @ obligatorio y contraseña > 8 caracteres
     fun validate(): Boolean {
         var isValid = true
@@ -143,16 +151,17 @@ fun LoginScreen(
 
                 if (response.isSuccessful && response.body() != null) {
                     val authBody = response.body()!!
-                    // Mapear rol autenticado en la base de datos MySQL
+                    // Mapear rol autenticado: MEDICO es EMPLEADO (no SUPER_ADMIN)
                     val roleFromDb = when (authBody.rol?.uppercase()) {
-                        "SUPER_ADMIN", "ADMIN", "MEDICO" -> UserRole.SUPER_ADMIN
-                        "EMPLEADO", "CUIDADOR" -> UserRole.EMPLEADO
+                        "SUPER_ADMIN", "ADMIN" -> UserRole.SUPER_ADMIN
+                        "EMPLEADO", "CUIDADOR", "MEDICO", "ENFERMERO" -> UserRole.EMPLEADO
                         "USUARIO", "FAMILIAR" -> UserRole.USUARIO
-                        else -> if (cleanEmail.contains("admin")) UserRole.SUPER_ADMIN else if (cleanEmail.contains("cuidador") || cleanEmail.contains("empleado")) UserRole.EMPLEADO else UserRole.USUARIO
+                        else -> if (cleanEmail.contains("admin")) UserRole.SUPER_ADMIN else if (cleanEmail.contains("cuidador") || cleanEmail.contains("empleado") || cleanEmail.contains("medico")) UserRole.EMPLEADO else UserRole.USUARIO
                     }
                     SessionManager.login(
                         email = cleanEmail,
                         rol = roleFromDb,
+                        nombrePersonalizado = authBody.nombre,
                         token = authBody.token
                     )
                     isLoading = false
@@ -161,8 +170,14 @@ fun LoginScreen(
                 } else if (response.code() == 401 || response.code() == 400) {
                     // Contraseña o usuario incorrectos en la base de datos MySQL
                     isLoading = false
-                    passwordError = "Contraseña incorrecta"
-                    loginErrorMessage = "Credenciales incorrectas. La contraseña no coincide con la base de datos."
+                    val errorStr = try { response.errorBody()?.string() ?: "" } catch (e: Exception) { "" }
+                    if (errorStr.contains("activada", ignoreCase = true) || errorStr.contains("Disabled", ignoreCase = true) || errorStr.contains("inactiva", ignoreCase = true)) {
+                        loginErrorMessage = "Tu cuenta aún no está activada. Ingresa tu código de activación de 6 caracteres recibido por correo."
+                        mostrarDialogoActivarCuenta = true
+                    } else {
+                        passwordError = "Contraseña incorrecta"
+                        loginErrorMessage = "Credenciales incorrectas. Verifica tu contraseña o correo."
+                    }
                     return@launch
                 }
             } catch (e: Exception) {
@@ -174,7 +189,7 @@ fun LoginScreen(
                 "admin@lumina.com" -> UserRole.SUPER_ADMIN
                 "cuidador@lumina.com" -> UserRole.EMPLEADO
                 "familiar@lumina.com" -> UserRole.USUARIO
-                else -> if (cleanEmail.contains("admin")) UserRole.SUPER_ADMIN else if (cleanEmail.contains("cuidador") || cleanEmail.contains("empleado")) UserRole.EMPLEADO else UserRole.USUARIO
+                else -> if (cleanEmail.contains("admin")) UserRole.SUPER_ADMIN else if (cleanEmail.contains("cuidador") || cleanEmail.contains("empleado") || cleanEmail.contains("medico")) UserRole.EMPLEADO else UserRole.USUARIO
             }
 
             // Validación estricta de contraseñas de las cuentas del sistema:
@@ -197,6 +212,120 @@ fun LoginScreen(
                 onLoginSuccess(roleFallback)
             }
         }
+    }
+
+    if (mostrarDialogoActivarCuenta) {
+        AlertDialog(
+            onDismissRequest = { mostrarDialogoActivarCuenta = false },
+            shape = RoundedCornerShape(20.dp),
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(26.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Activar Cuenta Lúmina",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Ingresa el código alfanumérico de 6 caracteres enviado a tu correo desde cuidadores.ies@gmail.com:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    OutlinedTextField(
+                        value = codigoActivacionLogin,
+                        onValueChange = {
+                            if (it.length <= 6) codigoActivacionLogin = it.uppercase()
+                        },
+                        label = { Text("Código de activación") },
+                        placeholder = { Text("Ej: B4B603") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    if (mensajeActivacion != null) {
+                        Surface(
+                            color = Color(0xFF10B981).copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = mensajeActivacion!!,
+                                color = Color(0xFF047857),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(10.dp)
+                            )
+                        }
+                    }
+
+                    if (errorActivacion != null) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = errorActivacion!!,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(10.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (mensajeActivacion != null) {
+                            mostrarDialogoActivarCuenta = false
+                            mensajeActivacion = null
+                        } else {
+                            coroutineScope.launch {
+                                isActivating = true
+                                errorActivacion = null
+                                try {
+                                    val resp = RetrofitClient.authApiService.verificarCodigo(
+                                        mapOf("token" to codigoActivacionLogin.trim().uppercase())
+                                    )
+                                    if (resp.isSuccessful) {
+                                        mensajeActivacion = "¡Cuenta activada con éxito! Ya puedes iniciar sesión con tu correo y contraseña."
+                                        errorActivacion = null
+                                    } else {
+                                        errorActivacion = "Código de activación inválido o ya utilizado."
+                                    }
+                                } catch (e: Exception) {
+                                    errorActivacion = "Error de conexión: ${e.message}"
+                                } finally {
+                                    isActivating = false
+                                }
+                            }
+                        }
+                    },
+                    enabled = codigoActivacionLogin.isNotBlank() && !isActivating,
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text(if (mensajeActivacion != null) "Cerrar e Iniciar Sesión" else if (isActivating) "Activando..." else "Activar Cuenta")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoActivarCuenta = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -469,6 +598,20 @@ fun LoginScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                TextButton(onClick = {
+                    errorActivacion = null
+                    mensajeActivacion = null
+                    codigoActivacionLogin = ""
+                    mostrarDialogoActivarCuenta = true
+                }) {
+                    Text(
+                        text = "¿Recibiste un código por correo? Activar cuenta aquí",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }

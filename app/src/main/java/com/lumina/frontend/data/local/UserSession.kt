@@ -18,7 +18,7 @@ enum class UserRole(
         code = "SUPER_ADMIN",
         titulo = "Super Admin",
         subtitulo = "Acceso global: Pacientes, Turnos, Métricas y Gestión total",
-        icono = "👑",
+        icono = "👤",
         colorHex = 0xFF7C3AED // Violeta elegante
     ),
     EMPLEADO(
@@ -60,10 +60,23 @@ object SessionManager {
      * Inicia sesión con el rol y correo provisto.
      */
     fun login(email: String, rol: UserRole, nombrePersonalizado: String? = null, token: String? = null) {
-        val nombre = nombrePersonalizado ?: when (rol) {
-            UserRole.SUPER_ADMIN -> "Dr. Miguel Herrera"
-            UserRole.EMPLEADO -> "Lic. Camila Salomón"
-            UserRole.USUARIO -> "Carlos Gómez"
+        val nombre = if (!nombrePersonalizado.isNullOrBlank()) {
+            nombrePersonalizado
+        } else {
+            // Formatear a partir del email (ej: "salomon@gmail.com" -> "Salomon")
+            val alias = email.trim().substringBefore("@")
+                .replace(".", " ")
+                .replace("_", " ")
+                .split(" ")
+                .filter { it.isNotBlank() }
+                .joinToString(" ") { part ->
+                    part.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                }
+            if (alias.isNotBlank()) alias else when (rol) {
+                UserRole.SUPER_ADMIN -> "Administrador"
+                UserRole.EMPLEADO -> "Profesional de Salud"
+                UserRole.USUARIO -> "Familiar"
+            }
         }
         _currentSession.value = UserSessionData(
             email = email.trim(),

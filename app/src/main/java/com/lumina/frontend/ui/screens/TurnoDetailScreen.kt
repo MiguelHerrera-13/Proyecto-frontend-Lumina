@@ -245,13 +245,13 @@ fun TurnoDetailScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = turno.nombrePaciente ?: "Roberto Gómez",
+                                text = turno.nombrePaciente ?: "Paciente Asignado",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "${turno.habitacion ?: "Hab. 204"} • Cuidados Asistidos",
+                                text = "${turno.habitacion ?: "Hab. asignada"} • Cuidados Asistidos",
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
