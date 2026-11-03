@@ -44,9 +44,17 @@ class RegisterViewModel : ViewModel() {
                 if (response.isSuccessful) {
                     _registerState.value = RegisterState.Success("Solicitud de registro enviada. Revisa tu correo de cuidadores.ies@gmail.com")
                 } else if (response.code() == 409) {
-                    _registerState.value = RegisterState.Error("El correo electrónico ya existe")
+                    _registerState.value = RegisterState.Error("El correo electrónico ya se encuentra registrado")
                 } else {
-                    _registerState.value = RegisterState.Error("Error al registrar: ${response.code()}")
+                    val rawMsg = try { response.errorBody()?.string() ?: "" } catch (e: Exception) { "" }
+                    val cleanMsg = if (rawMsg.contains("error")) {
+                        rawMsg.substringAfter("error\":\"").substringBefore("\"")
+                    } else if (rawMsg.isNotBlank()) {
+                        rawMsg
+                    } else {
+                        "Error al registrar (${response.code()})"
+                    }
+                    _registerState.value = RegisterState.Error(cleanMsg)
                 }
             } catch (e: Exception) {
                 _registerState.value = RegisterState.Error("Error de red: ${e.localizedMessage}")
